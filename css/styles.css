@@ -29,6 +29,7 @@ a { color: var(--accent); }
   position: sticky; top: 0; z-index: 10; background: #fff; border-bottom: 1px solid var(--line);
   display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 24px; flex-wrap: wrap;
 }
+#installBtn { margin-left: auto; }
 .brand { display: flex; align-items: center; gap: 12px; }
 .brand p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
 .logo-dot { width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, var(--accent), #8b5cf6); flex: none; }

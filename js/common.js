@@ -127,7 +127,20 @@
 
   window.MMS = { $, $$, store, toast, download, safeName, uniqueNamer, toCsv, parsePeople, EMAIL_RE, mail, writeMailKit, showTab };
 
+  // ---------- installable app ----------
+  let installPrompt = null;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault(); installPrompt = e;
+    const b = document.getElementById("installBtn"); if (b) b.hidden = false;
+  });
+  window.addEventListener("appinstalled", () => { const b = document.getElementById("installBtn"); if (b) b.hidden = true; toast("Installed — open Mail Merge Studio from your Start menu / home screen"); });
+  if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
+    const ib = document.getElementById("installBtn");
+    if (ib) ib.addEventListener("click", async () => { if (!installPrompt) return; installPrompt.prompt(); await installPrompt.userChoice; installPrompt = null; ib.hidden = true; });
     initMail();
     const t = store.get("tab", "certs");
     if (document.getElementById("tab-" + t)) showTab(t);
