@@ -22,7 +22,7 @@ Subject and email body are fully written per person ("Dear <name>," + your messa
 
 1. Make sure **OneDrive - Hexaware** shows in File Explorer's sidebar (OneDrive app signed in).
 2. Download [`power-automate/Mail-Merge-Send.zip`](../power-automate/Mail-Merge-Send.zip) (v4) — keep it zipped.
-3. <https://make.powerautomate.com> ▸ **My flows** — delete any older `Mail Merge - Send`.
+3. <https://make.powerautomate.com> ▸ **My flows** — delete any older `Mail Merge - Send v4`.
 4. **Import ▸ Import Package (Legacy)** ▸ **Upload** the zip.
 5. **Related resources**: *Select during import* for **OneDrive for Business**, **Office 365 Outlook** and **Microsoft Teams** → your account → **Save** → **Import**.
 6. Open the flow → **Turn on**.
@@ -43,7 +43,7 @@ It finds files by path, so replacing the folder each event never breaks it. Rebu
 1. Turn **off** Test mode and generate.
 2. File Explorer ▸ **OneDrive - Hexaware** ▸ delete the old `Mail Merge` folder.
 3. Right-click the ZIP ▸ **Extract All** ▸ **Browse** ▸ **OneDrive - Hexaware** ▸ **Extract**. Wait for the green ✓.
-4. Power Automate ▸ My flows ▸ `Mail Merge - Send` ▸ **Run**.
+4. Power Automate ▸ My flows ▸ `Mail Merge - Send v4` ▸ **Run**.
 
 About 2–3 seconds per email (300 people ≈ 15 minutes); the run continues even if you close the browser.
 

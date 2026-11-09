@@ -302,7 +302,7 @@
             <div class="card-head"><span class="step">5</span><h2>Generate</h2></div>
             <p class="test-flag warn small" hidden>🧪 Test mode is on — only 3 emails, all to you.</p>
             <button id="pkGen" class="btn primary block">Download mail ZIP</button>
-            <p class="muted small">Send it exactly like certificates: delete the old <code>Mail Merge</code> folder in <b>OneDrive - Hexaware</b>, extract this ZIP there, run <b>Mail Merge - Send</b>. Same flow — nothing new to build. (<a href="#" data-goto="send">Send emails</a>)</p>
+            <p class="muted small">Send it exactly like certificates: delete the old <code>Mail Merge</code> folder in <b>OneDrive - Hexaware</b>, extract this ZIP there, run <b>Mail Merge - Send v4</b>. Same flow — nothing new to build. (<a href="#" data-goto="send">Send emails</a>)</p>
           </div>
         </div>
 
@@ -423,7 +423,7 @@
           <ol class="steps">
             <li><b>Check OneDrive syncs on your laptop:</b> open File Explorer — you should see <b>OneDrive - Hexaware</b> in the left sidebar. <span class="muted">(If not, open the OneDrive app from the Start menu and sign in with your Hexaware account.)</span></li>
             <li><a class="btn primary small" href="power-automate/Mail-Merge-Send.zip" download>⬇ Download the flow (v4)</a> <span class="muted">— keep it zipped</span></li>
-            <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">make.powerautomate.com</a> ▸ <b>My flows</b>. If you imported an older <code>Mail Merge - Send</code>, delete it (⋯ ▸ Delete).</li>
+            <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">make.powerautomate.com</a> ▸ <b>My flows</b>. <b>Delete every older flow called <code>Mail Merge - Send</code></b> (⋯ ▸ Delete) so you never run an old version by mistake.</li>
             <li><b>Import</b> ▸ <b>Import Package (Legacy)</b> ▸ <b>Upload</b> the zip.</li>
             <li>Under <b>Related resources</b> click <b>Select during import</b> for <b>OneDrive for Business</b>, <b>Office 365 Outlook</b> and <b>Microsoft Teams</b> ▸ pick your account (or <i>+ Create new</i>) ▸ <b>Save</b>. Then <b>Import</b>.</li>
             <li>Open the flow ▸ <b>Turn on</b>.</li>
@@ -435,7 +435,7 @@
             <li>Untick 🧪 Test mode. Generate certificates (or the voucher <b>mail kit</b>).</li>
             <li>In File Explorer ▸ <b>OneDrive - Hexaware</b>: <b>delete the old <code>Mail Merge</code> folder</b>.</li>
             <li>Right-click the ZIP in Downloads ▸ <b>Extract All</b> ▸ <b>Browse</b> ▸ pick <b>OneDrive - Hexaware</b> ▸ <b>Extract</b>. Wait for the green ✓ on the new <code>Mail Merge</code> folder (synced).</li>
-            <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">Power Automate</a> ▸ <b>My flows</b> ▸ <code>Mail Merge - Send</code> ▸ <b>Run</b> ▸ <b>Run flow</b>.</li>
+            <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">Power Automate</a> ▸ <b>My flows</b> ▸ <code>Mail Merge - Send v4</code> ▸ <b>Run</b> ▸ <b>Run flow</b>.</li>
           </ol>
           <p class="muted small">Works for any number of people — sent one after another (about 2–3 s each, or 12 s with Teams on). You can close the page; it keeps going. When it's done, the delivery report lands in your inbox and a full CSV is saved in OneDrive ▸ Mail Merge.</p>
 

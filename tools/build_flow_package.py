@@ -273,7 +273,7 @@ flow_def = {
     "type": "Microsoft.Flow/flows",
     "properties": {
         "apiId": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
-        "displayName": "Mail Merge - Send",
+        "displayName": "Mail Merge - Send v4",
         "definition": definition,
         "connectionReferences": {
             api: {"connectionName": f"{api.replace('_', '-')}-mailmerge", "source": "Embedded",
@@ -290,7 +290,7 @@ resources = {
         "type": "Microsoft.Flow/flows",
         "suggestedCreationType": "New",
         "creationType": "Existing, New, Update",
-        "details": {"displayName": "Mail Merge - Send"},
+        "details": {"displayName": "Mail Merge - Send v4"},
         "configurableBy": "User",
         "hierarchy": "Root",
         "dependsOn": [x for a in API.values() for x in (a[0], a[1])],
@@ -311,7 +311,7 @@ for api, (api_id, conn_id, display, icon) in API.items():
 manifest = {
     "schema": "1.0",
     "details": {
-        "displayName": "Mail Merge - Send",
+        "displayName": "Mail Merge - Send v4",
         "description": "Mavericks Studio v4: one email (+ optional Teams ping with the certificate link) per person in OneDrive /Mail Merge, with a delivery report.",
         "createdTime": "2026-11-09T15:00:00.0000000Z",
         "packageTelemetryId": "8f9a0b1c-2d3e-4f5a-9b6c-7d8e9f0a1b2c",

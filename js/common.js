@@ -324,7 +324,7 @@
       "HOW TO SEND (one-time setup is in the app's 'Send emails' tab)\r\n\r\n" +
       "1. In File Explorer open 'OneDrive - Hexaware' and DELETE the old 'Mail Merge' folder.\r\n" +
       "2. Right-click this ZIP > Extract All > Browse > choose 'OneDrive - Hexaware' > Extract.\r\n" +
-      "3. make.powerautomate.com > My flows > 'Mail Merge - Send' > Run > Run flow.\r\n\r\n" +
+      "3. make.powerautomate.com > My flows > 'Mail Merge - Send v4' > Run > Run flow.\r\n\r\n" +
       `This mailing: ${records.length} email(s)` + (m.test ? `, TEST MODE - all sent to ${m.testEmail}` : "") + ".\r\n");
     const biggest = Math.max(0, ...people.map((p) => (p.files || []).reduce((t, f) => t + (f.size || 0), 0)));
     return { count: records.length, test: m.test, noEmail: withMail.filter((p) => !p.email).length, parts: names.length, biggestMB: biggest / 1048576,
