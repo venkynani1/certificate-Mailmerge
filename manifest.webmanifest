@@ -1,14 +1,24 @@
 {
-  "name": "Mail Merge Studio",
-  "short_name": "Mail Merge",
-  "description": "Certificates and vouchers for events — generate in one click, send in bulk from Outlook",
+  "name": "Mavericks Studio",
+  "short_name": "Mavericks Studio",
+  "description": "Certificates, vouchers and personal emails for events",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f5f6fa",
-  "theme_color": "#3b2fd9",
+  "theme_color": "#4b3ee0",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ]
 }

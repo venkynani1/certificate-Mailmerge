@@ -1,4 +1,4 @@
-# Mail Merge Studio — certificates & vouchers
+# Mavericks Studio — certificates, vouchers & personal emails
 
 A browser app that removes the copy-paste work after every event:
 
