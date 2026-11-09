@@ -21,20 +21,29 @@ Subject and email body are fully written per person ("Dear <name>," + your messa
 ## One-time setup (~3 minutes)
 
 1. Make sure **OneDrive - Hexaware** shows in File Explorer's sidebar (OneDrive app signed in).
-2. Download [`power-automate/Mail-Merge-Send.zip`](../power-automate/Mail-Merge-Send.zip) (v2) — keep it zipped.
+2. Download [`power-automate/Mail-Merge-Send.zip`](../power-automate/Mail-Merge-Send.zip) (v3) — keep it zipped.
 3. <https://make.powerautomate.com> ▸ **My flows** — delete any older `Mail Merge - Send`.
 4. **Import ▸ Import Package (Legacy)** ▸ **Upload** the zip.
-5. **Related resources**: *Select during import* for **OneDrive for Business** and **Office 365 Outlook** → your account → **Save** → **Import**.
+5. **Related resources**: *Select during import* for **OneDrive for Business**, **Office 365 Outlook** and **Microsoft Teams** → your account → **Save** → **Import**.
 6. Open the flow → **Turn on**.
 7. Test with the app's **Test mode** (3 emails, all to you).
 
-The flow: *Read the mail list* → *For each part* → *Send to each person* → (*Get each file* → *Add to attachments*) → *Send the email* → *Wait 2 seconds*.
+What the flow does for each person:
+
+1. **Already sent?** It looks for `/Mail Merge History/<key>.txt` in OneDrive. The key is made from the kind (certificate / voucher / custom), the event and the email address. If the marker exists, the person is **skipped**.
+2. **Sends the email** with every attachment for that person.
+3. **Remembers it**: writes the marker file so future runs skip them.
+4. **Teams ping** (if turned on in the app, and only for colleague addresses): a short chat message from the Workflows bot.
+5. Waits 2 s (12 s with Teams on — the Teams bot allows ~25 messages per 5 minutes).
+
+After everyone: a **delivery report** CSV is saved to `OneDrive / Mail Merge`, and an email goes to the report address with sent / failed / skipped counts and a table of every failure with its reason.
+
 It finds files by path, so replacing the folder each event never breaks it. Rebuild: `python3 tools/build_flow_package.py`.
 
 ## Every event (~1 minute)
 
 1. Turn **off** Test mode and generate.
-2. File Explorer ▸ **OneDrive - Hexaware** ▸ delete the old `Mail Merge` folder.
+2. File Explorer ▸ **OneDrive - Hexaware** ▸ delete the old `Mail Merge` folder (keep `Mail Merge History`).
 3. Right-click the ZIP ▸ **Extract All** ▸ **Browse** ▸ **OneDrive - Hexaware** ▸ **Extract**. Wait for the green ✓.
 4. Power Automate ▸ My flows ▸ `Mail Merge - Send` ▸ **Run**.
 
@@ -54,6 +63,7 @@ About 2–3 seconds per email (300 people ≈ 15 minutes); the run continues eve
 | Problem | Fix |
 |---|---|
 | Read the mail list: not found | `Mail Merge` must be directly inside **OneDrive - Hexaware**; wait for sync (green ✓) |
-| Old recipients emailed again | Delete the old `Mail Merge` folder before extracting |
+| Need to resend to someone | Untick *Never send the same thing twice* for that run |
+| Teams ping failed | Person outside the company, or the Workflows app is blocked in Teams — the email still went out |
 | A few emails failed | Open the run → red step shows why (often a mistyped address); the rest still send |
 | Send from a team mailbox | Replace *Send the email* with *Send an email from a shared mailbox (V2)* (needs Send-As) |

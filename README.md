@@ -54,7 +54,7 @@ See [`docs/POWER-AUTOMATE-GUIDE.md`](docs/POWER-AUTOMATE-GUIDE.md) or the **Send
 1. One time: import `power-automate/Mail-Merge-Send.zip` (My flows ▸ Import ▸ Import Package (Legacy)), connect OneDrive + Outlook, turn it on.
 2. Every event: generate → extract the ZIP into **OneDrive - Hexaware** (after deleting the old `Mail Merge` folder) → Run the flow.
 
-Any list size (the mail list is split into parts), every ticked format attached to the same email, test mode in the Send emails tab.
+Any list size, every ticked format attached to one email, never the same email twice (history in `OneDrive / Mail Merge History`), optional Teams ping, and a delivery report emailed after every run. Test mode is in the Send emails tab.
 
 ## Files
 

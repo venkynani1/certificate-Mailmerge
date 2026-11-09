@@ -204,7 +204,7 @@ details { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px
 summary { cursor: pointer; font-weight: 600; }
 .how { display: grid; gap: 8px; margin: 4px 0 6px; }
 .how div { display: flex; gap: 10px; align-items: flex-start; background: var(--surface-2); border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px; font-size: 13px; }
-.how b { width: 22px; height: 22px; border-radius: 7px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-size: 12px; flex: none; }
+.how > div > b:first-child { width: 22px; height: 22px; border-radius: 7px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; font-size: 12px; flex: none; }
 .steps > li { margin: 10px 0; }
 .steps ul { margin: 6px 0 0; padding-left: 18px; }
 .steps ul li { margin: 3px 0; font-size: 13px; }
@@ -266,7 +266,7 @@ p.warn { margin: 6px 0 0; }
 .float-bar:not(.is-edited) .only-edited { display: none; }
 
 /* ---------- Power Automate maker ---------- */
-.inline-input { display: inline-block; width: 124px; margin: 0 0 0 2px; padding: 2px 7px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 12px; background: var(--surface); color: var(--ink); }
+input.inline-input { display: inline-block; width: 124px; margin: 0 0 0 2px; padding: 2px 7px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 12px; background: var(--surface); color: var(--ink); }
 .common-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
 .common-row { display: grid; grid-template-columns: 1fr 1.6fr auto; gap: 6px; align-items: center; }
 .common-row input { margin: 0; }
@@ -302,3 +302,10 @@ p.warn { margin: 6px 0 0; }
   .preview { min-height: 240px; }
 }
 @media (max-width: 560px) { .tab svg { display: none; } .tab { padding: 7px 9px; font-size: 12.5px; } }
+
+.chip-input.short { min-height: 60px; }
+.opt-sub { margin: 6px 0 0 23px; padding: 8px 12px; border-left: 2px solid var(--accent-line); }
+.opt-sub label { margin-top: 0; font-weight: 450; }
+label.check span { line-height: 1.4; }
+.mail-preview .mp-subject.teams-prev { border-bottom: 0; border-top: 1px solid var(--line); font-weight: 500; }
+.mail-preview .mp-subject.teams-prev p { display: inline; margin: 0; }

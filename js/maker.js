@@ -153,14 +153,16 @@
     const body = fromEditor($("#pkBody"));
     const html = body.split(/\{Details\}/i).map((chunk) => linkify(escHtml(fillVars(chunk, vars)).replace(/\r?\n/g, "<br>"))).join(detailsTable(vars));
     const greet = $("#pkGreet").checked ? `Dear ${escHtml(vars.Name || "Participant")},<br><br>` : "";
+    const teamsText = fromEditor($("#pkTeams")).replace(/\{Details\}/gi, "");
     return {
+      teams: "<p>" + linkify(escHtml(fillVars(teamsText, vars)).replace(/\r?\n/g, "<br>")) + "</p>",
       subject: fillVars(fromEditor($("#pkSubject")).replace(/\{Details\}/gi, ""), vars).replace(/\s+/g, " ").trim(),
       html: '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#222">' + greet + html + "</div>",
     };
   }
   function unknownVars() {
     const known = Object.keys(labels()).map((k) => k.toLowerCase());
-    const text = fromEditor($("#pkSubject")) + "\n" + fromEditor($("#pkBody"));
+    const text = fromEditor($("#pkSubject")) + "\n" + fromEditor($("#pkBody")) + "\n" + fromEditor($("#pkTeams"));
     return Array.from(new Set((text.match(/\{([^{}\n]+)\}/g) || []).map((t) => t.slice(1, -1)).filter((v) => !known.includes(v.toLowerCase()))));
   }
 
@@ -200,7 +202,7 @@
 
   // re-draw editors so new/renamed fields show as chips
   function refreshEditors() {
-    ["pkSubject", "pkBody"].forEach((id) => {
+    ["pkSubject", "pkBody", "pkTeams"].forEach((id) => {
       const el = $("#" + id);
       const text = fromEditor(el);
       el.innerHTML = toEditorHtml(text, labels());
@@ -250,6 +252,7 @@
     const e = build(p, vars);
     const unk = unknownVars();
     box.innerHTML = `<div class="mp-subject"><span>To</span>${escHtml(p.email || "—")}</div><div class="mp-subject"><span>Subject</span>${escHtml(e.subject)}</div><div class="mp-body">${e.html}</div>` +
+      ($("#mTeams").checked ? `<div class="mp-subject teams-prev"><span>Teams</span>${p.email && p.email.toLowerCase().endsWith("@" + ($("#mDomain").value.trim().replace(/^@/, "") || "hexaware.com").toLowerCase()) ? e.teams : '<i class="muted">no Teams ping — not a colleague address</i>'}</div>` : "") +
       (unk.length ? `<div class="mp-subject warn">Unknown field(s): ${unk.map((u) => "{" + escHtml(u) + "}").join(", ")} — add a column or common value with that name, or remove it.</div>` : "");
   }
 
@@ -257,7 +260,7 @@
 
   function saveState() {
     store.set("maker", {
-      common: state.common, subject: fromEditor($("#pkSubject")), body: fromEditor($("#pkBody")),
+      common: state.common, subject: fromEditor($("#pkSubject")), body: fromEditor($("#pkBody")), teams: fromEditor($("#pkTeams")),
       greet: $("#pkGreet").checked, domain: $("#pkDomain").value.trim(),
     });
   }
@@ -285,20 +288,21 @@
       const subjectName = fromEditor($("#pkSubject")).replace(/\{[^}]*\}/g, "").trim() || "Mail";
       const kit = await writeMailKit(zip, { kind: "custom", people, event: subjectName, build: (p, vars) => build(p, vars) });
       download(await zip.generateAsync({ type: "blob" }), `${safeName(subjectName)} - Mail.zip`);
-      toast(`✔ Mail ZIP for ${kit.count} people` + (kit.test ? " · TEST mode: 3 emails to you" : kit.noEmail ? ` · ${kit.noEmail} without email skipped` : ""));
+      toast(`✔ Mail ZIP for ${kit.count} people` + (kit.teams ? ` · ${kit.teams} Teams pings` : "") + (kit.test ? " · TEST mode: 3 emails to you" : kit.noEmail ? ` · ${kit.noEmail} without email skipped` : ""));
     } catch (e) { console.error(e); toast("Couldn't build the ZIP: " + e.message, true); }
     finally { btn.disabled = false; }
   }
 
   // ---------- init ----------
   document.addEventListener("DOMContentLoaded", () => {
-    const subj = chipEditor("pkSubject", true), body = chipEditor("pkBody", false);
+    const subj = chipEditor("pkSubject", true), body = chipEditor("pkBody", false), teamsEd = chipEditor("pkTeams", false);
+    teamsEd.innerHTML = toEditorHtml(saved.teams != null ? saved.teams : "Hi {Name} 👋 We've just emailed you some important details — please check your inbox.", labels());
     $("#pkDomain").value = saved.domain || "hexaware.com";
     $("#pkGreet").checked = saved.greet !== false;
     subj.innerHTML = toEditorHtml(saved.subject != null ? saved.subject : "Your login details", labels());
     body.innerHTML = toEditorHtml(saved.body != null ? saved.body :
       "Here are your details:\n\n{Details}\n\nPlease keep them safe and reach out if you have any questions.\n\nRegards,\nEarly Careers Team", labels());
-    [subj, body].forEach((el) => {
+    [subj, body, teamsEd].forEach((el) => {
       el.addEventListener("focus", () => (lastEditor = el.id));
       el.addEventListener("input", () => { saveState(); renderPreview(); });
     });

@@ -289,7 +289,11 @@
             <label class="check"><input id="pkGreet" type="checkbox" checked /> Start with “Dear &lt;participant name&gt;,”</label>
             <label class="ed-label">Message</label>
             <div id="pkBody" class="chip-input tall" contenteditable="true" spellcheck="true"></div>
-            <p class="muted small" style="margin-bottom:4px">Click to add to the message (or subject — click into it first):</p>
+            <div class="teams-only">
+              <label class="ed-label">💬 Teams message <span class="hint">(keep passwords out of Teams — put them in the email)</span></label>
+              <div id="pkTeams" class="chip-input short" contenteditable="true" spellcheck="true"></div>
+            </div>
+            <p class="muted small" style="margin-bottom:4px">Click to add to the subject, message<span class="teams-only"> or Teams message</span> — click into it first:</p>
             <div id="pkChipButtons" class="ins-row"></div>
           </div>
 
@@ -319,6 +323,20 @@
       <div class="send-grid">
         <div class="send-left">
           <div class="card">
+            <div class="card-head"><h2>Sending options</h2></div>
+            <label>📊 Send the delivery report to <span class="hint">(after every run: sent / failed / skipped, with the reason for each failure)</span>
+              <input id="mReportTo" type="email" placeholder="you@hexaware.com" />
+            </label>
+            <p id="mReportWarn" class="warn small" hidden>That doesn't look like an email address.</p>
+            <label class="check" style="margin-top:12px"><input id="mSkipSent" type="checkbox" /> <span><b>Never send the same thing twice</b> — skip people who already received this email for this event</span></label>
+            <label class="check"><input id="mTeams" type="checkbox" /> <span><b>Also ping them in Microsoft Teams</b></span></label>
+            <div class="teams-only opt-sub">
+              <label>Teams works for colleagues on <input id="mDomain" class="inline-input" type="text" value="hexaware.com" /> — others (e.g. Gmail) get the email only.</label>
+              <p class="muted small">Messages come from the <b>Workflows</b> bot in Teams. Teams allows it about 5 messages a minute, so with Teams on the flow sends one person every 12 s (300 people ≈ 1 hour, runs on its own).</p>
+            </div>
+          </div>
+
+          <div class="card">
             <div class="card-head"><h2>Email text</h2></div>
             <p class="muted small">Just write the message. <b>“Dear &lt;participant name&gt;,”</b> is added at the top for you. Coloured chips like <span class="var-chip">Event name</span> are filled in per email — click a button to add one; they can't be broken by accident.</p>
 
@@ -331,6 +349,15 @@
             <div class="ins-row">
               <button class="btn ghost small ins-chip" data-target="mCertBody" data-var="Event">+ Event name</button>
               <button class="btn ghost small ins-chip" data-target="mCertBody" data-var="Name">+ Participant name</button>
+            </div>
+
+            <div class="teams-only">
+              <label class="ed-label">💬 Teams message <span class="hint">(short — the certificate itself comes by email)</span></label>
+              <div id="mCertTeams" class="chip-input short" contenteditable="true" spellcheck="true"></div>
+              <div class="ins-row">
+                <button class="btn ghost small ins-chip" data-target="mCertTeams" data-var="Name">+ Participant name</button>
+                <button class="btn ghost small ins-chip" data-target="mCertTeams" data-var="Event">+ Event name</button>
+              </div>
             </div>
 
             <h3>Vouchers</h3>
@@ -350,6 +377,15 @@
             <div class="auto-block">🧾 Voucher details table (Reference ID · Pin · Expiry · Amount) — added automatically</div>
             <label class="ed-label">Closing <span class="hint">(after the voucher details)</span></label>
             <div id="mVClosing" class="chip-input" contenteditable="true" spellcheck="true"></div>
+            <div class="teams-only">
+              <label class="ed-label">💬 Teams message <span class="hint">(don't put the voucher code here — it stays in the email)</span></label>
+              <div id="mVTeams" class="chip-input short" contenteditable="true" spellcheck="true"></div>
+              <div class="ins-row">
+                <button class="btn ghost small ins-chip" data-target="mVTeams" data-var="Name">+ Participant name</button>
+                <button class="btn ghost small ins-chip" data-target="mVTeams" data-var="Event">+ Event name</button>
+                <button class="btn ghost small ins-chip" data-target="mVTeams" data-var="Brand">+ Voucher brand</button>
+              </div>
+            </div>
             <button id="mReset" class="btn link small">Reset email text</button>
           </div>
 
@@ -383,10 +419,10 @@
           <h3>One-time setup · about 3 minutes</h3>
           <ol class="steps">
             <li><b>Check OneDrive syncs on your laptop:</b> open File Explorer — you should see <b>OneDrive - Hexaware</b> in the left sidebar. <span class="muted">(If not, open the OneDrive app from the Start menu and sign in with your Hexaware account.)</span></li>
-            <li><a class="btn primary small" href="power-automate/Mail-Merge-Send.zip" download>⬇ Download the flow (v2)</a> <span class="muted">— keep it zipped</span></li>
-            <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">make.powerautomate.com</a> ▸ <b>My flows</b>. If you imported the old <code>Mail Merge - Send</code>, delete it (⋯ ▸ Delete).</li>
+            <li><a class="btn primary small" href="power-automate/Mail-Merge-Send.zip" download>⬇ Download the flow (v3)</a> <span class="muted">— keep it zipped</span></li>
+            <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">make.powerautomate.com</a> ▸ <b>My flows</b>. If you imported an older <code>Mail Merge - Send</code>, delete it (⋯ ▸ Delete).</li>
             <li><b>Import</b> ▸ <b>Import Package (Legacy)</b> ▸ <b>Upload</b> the zip.</li>
-            <li>Under <b>Related resources</b> click <b>Select during import</b> for <b>OneDrive for Business</b> and for <b>Office 365 Outlook</b> ▸ pick your account ▸ <b>Save</b>. Then <b>Import</b>.</li>
+            <li>Under <b>Related resources</b> click <b>Select during import</b> for <b>OneDrive for Business</b>, <b>Office 365 Outlook</b> and <b>Microsoft Teams</b> ▸ pick your account (or <i>+ Create new</i>) ▸ <b>Save</b>. Then <b>Import</b>.</li>
             <li>Open the flow ▸ <b>Turn on</b>.</li>
             <li><b>Test:</b> tick 🧪 Test mode, generate certificates for 2–3 names, then follow “Every event” below. You should get 3 [TEST] emails.</li>
           </ol>
@@ -398,7 +434,7 @@
             <li>Right-click the ZIP in Downloads ▸ <b>Extract All</b> ▸ <b>Browse</b> ▸ pick <b>OneDrive - Hexaware</b> ▸ <b>Extract</b>. Wait for the green ✓ on the new <code>Mail Merge</code> folder (synced).</li>
             <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">Power Automate</a> ▸ <b>My flows</b> ▸ <code>Mail Merge - Send</code> ▸ <b>Run</b> ▸ <b>Run flow</b>.</li>
           </ol>
-          <p class="muted small">Works for any number of people — big lists are split into parts automatically and sent one after another (about 2–3 seconds per email, so 300 people ≈ 15 minutes; you can close the page, it keeps going).</p>
+          <p class="muted small">Works for any number of people — sent one after another (about 2–3 s each, or 12 s with Teams on). You can close the page; it keeps going. When it's done, the delivery report lands in your inbox and a full CSV is saved in OneDrive ▸ Mail Merge. The <code>Mail Merge History</code> folder remembers who already got what — don't delete it.</p>
 
           <details>
             <summary>Something went wrong?</summary>
@@ -406,7 +442,9 @@
               <li><b>“Read the mail list” — not found:</b> the <code>Mail Merge</code> folder must sit directly inside <b>OneDrive - Hexaware</b>, not inside another folder. Wait for the green ✓ before running.</li>
               <li><b>Old people got emailed:</b> the old <code>Mail Merge</code> folder was still there — always delete it before extracting.</li>
               <li><b>Email too big:</b> each email carries all formats you ticked. Untick PNG (it's the largest) if attachments get heavy.</li>
-              <li><b>A few emails failed:</b> open the run, click the red step to see why (usually a mistyped email). The others still go out.</li>
+              <li><b>A few emails failed:</b> the delivery report lists each one with the reason (usually a mistyped address). Fix them and generate again — people who already got it are skipped automatically.</li>
+              <li><b>Need to send someone the same thing again:</b> untick <i>Never send the same thing twice</i> for that run.</li>
+              <li><b>Teams says failed:</b> the person may be outside Hexaware, or Teams has the Workflows app blocked — the email still went out.</li>
               <li><b>Sending from a team mailbox:</b> in the flow replace <i>Send the email</i> with <i>Send an email from a shared mailbox (V2)</i> (needs Send-As rights).</li>
             </ul>
           </details>

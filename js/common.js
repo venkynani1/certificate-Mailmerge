@@ -87,6 +87,8 @@
     vSubject: "Your {Brand} voucher – {Event}",
     vBody: "Thank you for your enthusiastic participation in {Event}.\n\nAs a token of appreciation, here are your {Brand} voucher details:",
     vClosing: "Regards,\nEarly Careers Team",
+    certTeams: "Hi {Name} 👋 Your certificate for {Event} has just been emailed to you — please check your inbox.",
+    vTeams: "Hi {Name} 👋 Your {Brand} voucher for {Event} has just been emailed to you — please check your inbox.",
   };
   const escHtml = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const attrEsc = (t) => escHtml(t).replace(/"/g, "&quot;");
@@ -129,7 +131,7 @@
     document.execCommand("insertHTML", false, chipHtml(v, labels) + "​");
   }
 
-  const mailFields = { certSubject: "mCertSubject", certBody: "mCertBody", vSubject: "mVSubject", vBody: "mVBody", vClosing: "mVClosing" };
+  const mailFields = { certSubject: "mCertSubject", certBody: "mCertBody", vSubject: "mVSubject", vBody: "mVBody", vClosing: "mVClosing", certTeams: "mCertTeams", vTeams: "mVTeams" };
   function initMail() {
     const saved = store.get("mail2", {});
     Object.entries(mailFields).forEach(([k, id]) => {
@@ -140,6 +142,18 @@
     $$(".ins-chip").forEach((b) => {
       b.addEventListener("mousedown", (e) => e.preventDefault());
       b.addEventListener("click", () => { insertChip(b.dataset.target, b.dataset.var); editors[b.dataset.target].dispatchEvent(new Event("input")); });
+    });
+    // sending options: delivery report, skip already-sent, Teams ping
+    const opts = { mReportTo: ["reportTo", ""], mDomain: ["domain", "hexaware.com"] };
+    Object.entries(opts).forEach(([id, [k, d]]) => {
+      const el = $("#" + id);
+      el.value = saved[k] != null ? saved[k] : d;
+      el.addEventListener("input", () => { const s = store.get("mail2", {}); s[k] = el.value.trim(); store.set("mail2", s); syncOptions(); });
+    });
+    [["mSkipSent", "skipSent", true], ["mTeams", "teams", false]].forEach(([id, k, d]) => {
+      const el = $("#" + id);
+      el.checked = saved[k] != null ? saved[k] : d;
+      el.addEventListener("change", () => { const s = store.get("mail2", {}); s[k] = el.checked; store.set("mail2", s); syncOptions(); renderMailPreview(); });
     });
     const te = $("#mTestEmail"), t = $("#mTest");
     te.value = saved.testEmail || "";
@@ -154,13 +168,23 @@
     $$("[data-preview]").forEach((b) => b.addEventListener("click", () => {
       $$("[data-preview]").forEach((x) => x.classList.toggle("active", x === b)); renderMailPreview();
     }));
-    syncTestFlag(); renderMailPreview();
+    syncTestFlag(); syncOptions(); renderMailPreview();
+  }
+  function syncOptions() {
+    const on = $("#mTeams").checked;
+    $$(".teams-only").forEach((el) => (el.hidden = !on));
+    const r = $("#mReportTo").value.trim();
+    $("#mReportWarn").hidden = !r || EMAIL_RE.test(r);
   }
   function mail() {
     const o = {};
     Object.entries(mailFields).forEach(([k, id]) => (o[k] = fromEditor(editors[id]).trim()));
     o.testEmail = $("#mTestEmail").value.trim();
     o.test = $("#mTest").checked && EMAIL_RE.test(o.testEmail);
+    o.reportTo = EMAIL_RE.test($("#mReportTo").value.trim()) ? $("#mReportTo").value.trim() : "";
+    o.skipSent = $("#mSkipSent").checked;
+    o.teams = $("#mTeams").checked;
+    o.domain = ($("#mDomain").value.trim().replace(/^@/, "") || "hexaware.com").toLowerCase();
     return o;
   }
   function syncTestFlag() {
@@ -189,7 +213,8 @@
     let html = greet + (kind === "cert" ? textHtml(m.certBody, vars) : textHtml(m.vBody, vars) + "<br>" + voucherTable(vars) + "<br>" + textHtml(m.vClosing, vars));
     html = '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#222">' + html + "</div>";
     const subject = fillVars(kind === "cert" ? m.certSubject : m.vSubject, vars).replace(/\s+/g, " ").trim();
-    return { subject, html };
+    const teams = "<p>" + textHtml(kind === "cert" ? m.certTeams : m.vTeams, vars) + "</p>";
+    return { subject, html, teams };
   }
   function renderMailPreview() {
     const box = $("#mailPreview"); if (!box) return;
@@ -198,7 +223,8 @@
     const vars = { Name: "Venkatesh Ragipati", Event: kind === "cert" ? ev : (($("#vEvent") && $("#vEvent").value.trim()) || ev), Brand: ($("#vBrand") && $("#vBrand").value.trim()) || "Amazon",
       RefID: "H6V6-UX3PPG-DGEY", Pin: "6014879723006652", Expiry: "2027-10-13", Amount: "1000" };
     const e = buildEmail(kind, mail(), vars);
-    box.innerHTML = `<div class="mp-subject"><span>Subject</span>${escHtml(e.subject)}</div><div class="mp-body">${e.html}</div>`;
+    box.innerHTML = `<div class="mp-subject"><span>Subject</span>${escHtml(e.subject)}</div><div class="mp-body">${e.html}</div>` +
+      ($("#mTeams").checked ? `<div class="mp-subject teams-prev"><span>Teams</span>${e.teams}</div>` : "");
   }
   const xmlEsc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -242,20 +268,38 @@
    */
   const PART_CHARS = 60000;
   // build(person, vars) -> {subject, html} lets other tabs (Power Automate maker) write their own emails
+  async function sha(text) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).slice(0, 20).map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  // Key   = who + what: the flow leaves a marker file named after it in OneDrive /Mail Merge History,
+  //         so the same person never gets the same email twice — even across runs and days.
+  // CheckKey = what the flow looks for before sending (made unique when resending or testing).
   async function writeMailKit(zip, { kind, people, event, build }) {
     const m = mail();
     const list = m.test ? people.slice(0, 3) : people.filter((p) => p.email);
-    const records = list.map((p) => {
+    const stamp = Date.now().toString(36);
+    const what = `${kind}|${String(event || "").toLowerCase().replace(/\s+/g, " ").trim()}`;
+    const records = [];
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
       const vars = Object.assign({}, p.vars || {}, { Name: p.name || "Participant" });
       const e = build ? build(p, vars) : buildEmail(kind, m, vars);
-      return {
-        Email: m.test ? m.testEmail : p.email,
+      const to = m.test ? m.testEmail : p.email;
+      const key = m.test ? `test-${stamp}-${i}` : await sha(`${what}|${String(to).toLowerCase().trim()}`);
+      const teamsTo = m.teams && to.toLowerCase().endsWith("@" + m.domain) ? to : "";
+      records.push({
+        Email: to,
         Name: p.name || "",
         Subject: (m.test ? "[TEST] " : "") + e.subject,
         Body: e.html,
         Files: (p.files || []).map((f) => ({ Name: f.Name, Path: f.Path })),
-      };
-    });
+        Key: key,
+        CheckKey: m.skipSent || m.test ? key : `resend-${stamp}-${i}`,
+        TeamsTo: teamsTo,
+        TeamsMessage: teamsTo ? (m.test ? "<p>[TEST]</p>" : "") + (e.teams || "") : "",
+      });
+    }
     const parts = [];
     let cur = [], size = 2;
     records.forEach((r) => {
@@ -267,10 +311,12 @@
     const names = parts.map((_, i) => `mail-list-part-${String(i + 1).padStart(3, "0")}.json`);
     parts.forEach((part, i) => zip.file("Mail Merge/" + names[i], JSON.stringify(part)));
     zip.file("Mail Merge/mail-list.json", JSON.stringify({
-      version: 2, kind, event: event || "", createdAt: new Date().toISOString(), count: records.length, test: m.test, parts: names,
+      version: 3, kind, event: event || "", createdAt: new Date().toISOString(), count: records.length, test: m.test, parts: names,
+      reportTo: m.reportTo, waitSeconds: records.some((r) => r.TeamsTo) ? 12 : 2, skipSent: m.skipSent,
     }, null, 1));
-    const header = ["Email", "Name", "Subject", "Attachments"];
-    zip.file("Mail Merge/mail-list.xlsx", await buildMailXlsx(header, records.map((r) => [r.Email, r.Name, r.Subject, r.Files.map((f) => f.Name).join(", ")])));
+    const header = ["Email", "Name", "Subject", "Attachments", "Teams"];
+    zip.file("Mail Merge/mail-list.xlsx", await buildMailXlsx(header, records.map((r) => [r.Email, r.Name, r.Subject, r.Files.map((f) => f.Name).join(", "), r.TeamsTo ? "yes" : ""])));
+    zip.file("Mail Merge History/about.txt", "Mavericks Studio keeps one small file here for every email that was sent,\r\nso nobody gets the same email twice. Don't delete this folder.\r\n");
     zip.file("READ ME - how to send.txt",
       "HOW TO SEND (one-time setup is in the app's 'Send emails' tab)\r\n\r\n" +
       "1. In File Explorer open 'OneDrive - Hexaware' and DELETE the old 'Mail Merge' folder.\r\n" +
@@ -278,7 +324,8 @@
       "3. make.powerautomate.com > My flows > 'Mail Merge - Send' > Run > Run flow.\r\n\r\n" +
       `This mailing: ${records.length} email(s)` + (m.test ? `, TEST MODE - all sent to ${m.testEmail}` : "") + ".\r\n");
     const biggest = Math.max(0, ...people.map((p) => (p.files || []).reduce((t, f) => t + (f.size || 0), 0)));
-    return { count: records.length, test: m.test, noEmail: people.filter((p) => !p.email).length, parts: names.length, biggestMB: biggest / 1048576 };
+    return { count: records.length, test: m.test, noEmail: people.filter((p) => !p.email).length, parts: names.length, biggestMB: biggest / 1048576,
+      teams: records.filter((r) => r.TeamsTo).length, reportTo: m.reportTo };
   }
 
   window.MMS = { $, $$, store, toast, download, safeName, uniqueNamer, toCsv, parsePeople, EMAIL_RE, mail, writeMailKit, buildMailXlsx, renderMailPreview, showTab,
