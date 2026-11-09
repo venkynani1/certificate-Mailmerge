@@ -284,7 +284,7 @@
     const btn = $("#pkGen"); btn.disabled = true;
     try {
       const zip = new JSZip();
-      const people = list.map(({ p, i }) => ({ name: p.name, email: p.email, files: [], vars: varsFor(p, i) }));
+      const people = list.map(({ p, i }) => ({ name: p.name, email: p.email, emp: p.emp, files: [], vars: varsFor(p, i) }));
       const subjectName = fromEditor($("#pkSubject")).replace(/\{[^}]*\}/g, "").trim() || "Mail";
       const kit = await writeMailKit(zip, { kind: "custom", people, event: subjectName, build: (p, vars) => build(p, vars) });
       download(await zip.generateAsync({ type: "blob" }), `${safeName(subjectName)} - Mail.zip`);

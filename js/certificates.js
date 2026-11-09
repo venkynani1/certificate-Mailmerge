@@ -633,12 +633,13 @@
         const wb = XLSX.read(new Uint8Array(reader.result), { type: "array" });
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false });
         const hIdx = rows.findIndex((r) => r.some((c) => /name/i.test(String(c))));
-        let nameCol = 0, mailCol = -1, start = 0;
+        let nameCol = 0, mailCol = -1, empCol = -1, start = 0;
         if (hIdx >= 0 && hIdx < 10) {
           const h = rows[hIdx].map((c) => String(c).trim().toLowerCase());
           nameCol = h.findIndex((c) => /(^|\s)(full\s*)?name/.test(c) && !/mail|team|event/.test(c));
           if (nameCol < 0) nameCol = h.findIndex((c) => /name/.test(c));
           mailCol = h.findIndex((c) => /mail/.test(c));
+          empCol = h.findIndex((c) => /\b(emp(loyee)?|associate|staff)\s*(id|code|no\.?|number)\b/.test(c) || /^(emp|empid|emp\.?\s*id|id)$/.test(c));
           // one certificate design per run — category columns are ignored
           start = hIdx + 1;
         }
@@ -651,7 +652,8 @@
           if (!email) { const m = r.join(" ").match(EMAIL_RE); email = m ? m[0] : ""; }
           const g = active;
           if (!buckets.has(g)) buckets.set(g, []);
-          buckets.get(g).push(email ? `${name}, ${email}` : name);
+          const emp = empCol >= 0 ? String(r[empCol] || "").replace(/\s+/g, "").replace(/\.0+$/, "") : "";
+          buckets.get(g).push([name, email, emp].filter(Boolean).join(", "));
           count++;
         });
         if (!count) { toast("No names found. Make sure there's a 'Name' column.", true); return; }
@@ -693,7 +695,8 @@
     throw new Error("the browser couldn't create the image (template too large?). Try fewer names or a smaller PNG.");
   }
 
-  async function generate() {
+  // mode "kit": certificates + mail list for Power Automate.  mode "files": just the certificates.
+  async function generate(mode) {
     if (editing) commitEdit();
     const targets = [active].filter((g) => people(g).length);
     if (!targets.length) { toast("Add some names first.", true); return; }
@@ -702,7 +705,9 @@
     const noName = targets.filter((g) => !g.layers.some((l) => isName(l) && hasBox(l)));
     if (noName.length) { toast("Click the name on the certificate and press 👤 Name first.", true); return; }
 
-    const btn = $("#genCerts"), prog = $("#certProg"), pbar = prog.firstElementChild, lbl = prog.lastElementChild;
+    const btn = mode === "files" ? $("#dlCerts") : $("#genCerts"), prog = $("#certProg"), pbar = prog.firstElementChild, lbl = prog.lastElementChild;
+    const folder = mode === "files" ? "" : "Mail Merge/";
+    const loose = [];
     btn.disabled = true; prog.hidden = false;
     const total = targets.reduce((n, g) => n + people(g).length, 0);
     let done = 0;
@@ -753,21 +758,32 @@
               pdf.setProperties({ title: `${event ? event + " – " : ""}${display}` });
               blob = pdf.output("blob");
             }
-            zip.file("Mail Merge/" + fname, blob, { compression: "STORE" });
+            zip.file(folder + fname, blob, { compression: "STORE" });
+            loose.push({ fname, blob });
             files.push({ Name: fname, Path: fname, size: blob.size });
           }
-          mailRows.push({ name: display, email: p.email, files, vars: { Event: event } });
+          mailRows.push({ name: display, email: p.email, emp: p.emp, files, vars: { Event: event } });
           done++;
           pbar.style.width = (done / total) * 100 + "%";
           lbl.textContent = `${done} / ${total}`;
           if (done % 3 === 0) await tick();
         }
       }
+      if (mode === "files") {
+        if (loose.length === 1) download(loose[0].blob, loose[0].fname); // one person, one format: just the file
+        else {
+          lbl.textContent = "Zipping…";
+          await tick();
+          download(await zip.generateAsync({ type: "blob" }), `${safeName(event || "Certificates")} - Certificates only.zip`);
+        }
+        toast(`✔ ${total} certificate${total > 1 ? "s" : ""} downloaded (${fmts.map((f) => f.toUpperCase()).join(" + ")})`);
+        return;
+      }
       const kit = await writeMailKit(zip, { kind: "cert", people: mailRows, event });
       lbl.textContent = "Zipping…";
       await tick();
       download(await zip.generateAsync({ type: "blob" }), `${safeName(event || "Certificates")} - Certificates.zip`);
-      toast(`✔ ${total} certificates ready` + (kit.test ? " · TEST mode: 3 emails to you" : kit.noEmail ? ` · ${kit.noEmail} without email won't be mailed` : ""));
+      toast(`✔ ${total} certificates ready` + (kit.teams ? ` · ${kit.teams} Teams messages` : "") + (kit.test ? " · TEST mode: 3 emails to you" : kit.noEmail ? ` · ${kit.noEmail} without email or Emp ID won't be mailed` : ""));
       if (kit.biggestMB > 20) setTimeout(() => toast(`Heads-up: one email's attachments are ${kit.biggestMB.toFixed(1)} MB. Outlook allows ~25 MB — untick PNG to keep emails small.`, true), 3800);
     } catch (e) {
       console.error(e);
@@ -849,7 +865,8 @@
       });
     });
     $("#fmtHint").textContent = fmtHint();
-    $("#genCerts").addEventListener("click", generate);
+    $("#genCerts").addEventListener("click", () => generate("kit"));
+    $("#dlCerts").addEventListener("click", () => generate("files"));
 
     const ev = $("#certEvent");
     ev.value = store.get("certEvent", "");

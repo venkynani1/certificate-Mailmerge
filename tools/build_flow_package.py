@@ -1,21 +1,20 @@
 """Builds power-automate/Mail-Merge-Send.zip — a Power Automate flow package you import via
 My flows > Import > Import Package (Legacy).
 
-v3 flow (Manually trigger):
-  Set up variables (attachments, report, counters)
-  Read the mail list -> Mail list (index: parts, event, reportTo, waitSeconds)
+v4 flow (Manually trigger):
+  Set up variables (attachments, report, counters, links)
+  Read the mail list -> Mail list (index: parts, event, eventFolder, reportTo, waitSeconds)
   For each part (mail-list-part-NNN.json — keeps every decoded text under PA's 131,072-char limit)
     Send to each person (one at a time)
-      Check if already sent        OneDrive: /Mail Merge History/<CheckKey>.txt exists?
-      Already sent  (if it exists) -> report "Skipped"
-      Send now      (if it doesn't)
+      Send now
         Clear attachments, Get each file -> Add to attachments
         Send the email (Outlook)
-        Email failed  -> report "Failed" + reason
-        Email sent    -> Remember it (/Mail Merge History/<Key>.txt)
-                       -> Teams ping (Flow bot chat) if TeamsTo is set
-                       -> report "Sent" (+ Teams result)
-      Wait (2 s, or 12 s when Teams is on — Flow bot allows 25 messages / 5 minutes)
+        Email failed -> report "Failed" + reason
+        Email sent   -> Teams ping (if TeamsTo is set):
+                          for each certificate file: keep a copy in /Mail Merge Certificates/<event>/,
+                          make a company-only view link, then post the message + links (Workflows bot)
+                     -> report "Sent" (+ Teams result)
+      Wait (2 s, or 12 s when Teams is on — the Teams bot allows ~25 messages / 5 minutes)
   Build the report: CSV saved to /Mail Merge/delivery-report-<time>.csv
   Email the report to reportTo: counts + a table of every failure with its reason
 
@@ -29,8 +28,8 @@ import zipfile
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "power-automate" / "Mail-Merge-Send.zip"
 
-FLOW_ID = "b7c8d9e0-f1a2-4b3c-8d4e-5f6a7b8c9d0e"     # package resource id / folder (v3)
-FLOW_NAME = "c8d9e0f1-a2b3-4c4d-9e5f-6a7b8c9d0e1f"   # flow name inside definition (v3)
+FLOW_ID = "d1e2f3a4-b5c6-4d7e-8f9a-0b1c2d3e4f5a"     # package resource id / folder (v4)
+FLOW_NAME = "e2f3a4b5-c6d7-4e8f-9a0b-1c2d3e4f5a6b"   # flow name inside definition (v4)
 API = {
     "shared_onedriveforbusiness": ("2a4c6e8f-1b3d-4f5a-8c7e-9d0b2a4c6e8f", "4c6e8a0b-3d5f-4b7c-8e9a-1f2d4c6e8a0b", "OneDrive for Business",
                                    "https://connectoricons-prod.azureedge.net/onedriveforbusiness/icon_1.0.1018.1239.png"),
@@ -84,6 +83,7 @@ def incr(var, run_after=None):
 
 
 P = "items('Send_to_each_person')"
+TF = "items('Share_each_certificate')"
 FILE = "items('Get_each_file')"
 LIST = "outputs('Mail_list')"
 
@@ -129,23 +129,41 @@ send_now = scope({
         "Count_failed": incr("failed", {"Note_the_failure": ["Succeeded"]}),
     }, {"Send_the_email": ["Failed", "Skipped", "TimedOut"]}, "Record why it failed"),
     "Email_sent": scope({
-        "Remember_it_was_sent": op("shared_onedriveforbusiness", "CreateFile", {
-            "folderPath": "/Mail Merge History",
-            "name": f"@{{{P}?['Key']}}.txt",
-            "body": f"@{{{P}?['Email']}} | @{{{P}?['Subject']}} | @{{utcNow()}}",
-        }, description="So a later run never sends this person the same thing again"),
         "Teams_ping": {
-            "runAfter": {"Remember_it_was_sent": ["Succeeded", "Failed"]},
+            "runAfter": {},
             "type": "If",
             "expression": {"and": [{"not": {"equals": [f"@coalesce({P}?['TeamsTo'], '')", ""]}}]},
             "actions": {
+                "Clear_links": setvar("links", []),
+                "Share_each_certificate": loop(
+                    f"@coalesce({P}?['TeamsFiles'], json('[]'))",
+                    {
+                        "Keep_a_copy": op("shared_onedriveforbusiness", "CopyDriveFileByPath", {
+                            "source": f"@{{concat('/Mail Merge/', {TF}?['Path'])}}",
+                            "destination": f"@{{concat('/Mail Merge Certificates/', {LIST}?['eventFolder'], '/', {TF}?['Path'])}}",
+                            "overwrite": True,
+                        }, description="Permanent copy, so the Teams link keeps working after Mail Merge is replaced"),
+                        "Get_a_link": op("shared_onedriveforbusiness", "CreateShareLinkByPathV2", {
+                            "path": f"@{{concat('/Mail Merge Certificates/', {LIST}?['eventFolder'], '/', {TF}?['Path'])}}",
+                            "type": "View",
+                            "scope": "Organization",
+                        }, {"Keep_a_copy": ["Succeeded"]}, "View-only link for people in the company"),
+                        "Add_the_link": append("links",
+                            f"@{{concat('<a href=\"', body('Get_a_link')?['WebUrl'], '\">📄 ', {TF}?['Name'], '</a>')}}",
+                            {"Get_a_link": ["Succeeded"]}),
+                    },
+                    {"Clear_links": ["Succeeded"]},
+                    "Certificate files to link in Teams",
+                ),
                 "Post_in_Teams": op("shared_teams", "PostMessageToConversation", {
                     "poster": "Flow bot",
                     "location": "Chat with Flow bot",
                     "body/recipient": f"@{P}?['TeamsTo']",
-                    "body/messageBody": f"@{P}?['TeamsMessage']",
-                }),
-                "Teams_ok": setvar("teamsStatus", "Sent", {"Post_in_Teams": ["Succeeded"]}),
+                    "body/messageBody": f"@{{concat({P}?['TeamsMessage'], if(empty(variables('links')), '', concat('<p>', join(variables('links'), '<br>'), '</p>')))}}",
+                }, {"Share_each_certificate": ["Succeeded", "Failed", "TimedOut"]}),
+                "Teams_ok": setvar("teamsStatus",
+                                   "@{concat('Sent', if(equals(actions('Share_each_certificate')?['status'], 'Failed'), ' (no file link: OneDrive sharing failed)', ''))}",
+                                   {"Post_in_Teams": ["Succeeded"]}),
                 "Teams_failed": setvar("teamsStatus",
                                        "@{concat('Failed: ', coalesce(actions('Post_in_Teams')?['outputs']?['body']?['error']?['message'], "
                                        "actions('Post_in_Teams')?['outputs']?['body']?['message'], 'Teams did not accept the message'))}",
@@ -156,22 +174,12 @@ send_now = scope({
         "Note_the_send": append("report", report_row("Sent", "@variables('teamsStatus')", ""), {"Teams_ping": ANY_END}),
         "Count_sent": incr("sent", {"Note_the_send": ["Succeeded"]}),
     }, {"Send_the_email": ["Succeeded"]}),
-}, {"Check_if_already_sent": ["Failed"]}, "Not sent before — send it")
-
-already_sent = scope({
-    "Note_the_skip": append("report", report_row(
-        "Skipped", "—", "@{concat('Already received this on ', coalesce(body('Check_if_already_sent')?['LastModified'], 'an earlier run'))}")),
-    "Count_skipped": incr("skipped", {"Note_the_skip": ["Succeeded"]}),
-}, {"Check_if_already_sent": ["Succeeded"]}, "Already received it in an earlier run — don't send twice")
+}, {}, "Email (and Teams) for this person")
 
 per_person = {
-    "Check_if_already_sent": op("shared_onedriveforbusiness", "GetFileMetadataByPath",
-                                {"path": f"@{{concat('/Mail Merge History/', {P}?['CheckKey'], '.txt')}}"},
-                                description="A marker file exists for everyone who already received this"),
-    "Already_sent": already_sent,
     "Send_now": send_now,
     "Wait": {
-        "runAfter": {"Send_now": ["Succeeded", "Failed", "TimedOut"]},
+        "runAfter": {"Send_now": ANY_END},
         "type": "Wait",
         "description": "Stay under Outlook / Teams sending limits",
         "inputs": {"interval": {"count": f"@{LIST}?['waitSeconds']", "unit": "Second"}},
@@ -181,7 +189,7 @@ per_person = {
 report_email_body = (
     "<div style=\"font-family:Calibri,Arial,sans-serif;font-size:11pt\">"
     "<p><b>@{" + LIST + "?['event']}</b> — run finished @{utcNow()} (UTC)</p>"
-    "<p>✅ Sent: <b>@{variables('sent')}</b> &nbsp; ❌ Failed: <b>@{variables('failed')}</b> &nbsp; ⏭️ Skipped (already received): <b>@{variables('skipped')}</b></p>"
+    "<p>✅ Sent: <b>@{variables('sent')}</b> &nbsp; ❌ Failed: <b>@{variables('failed')}</b></p>"
     "@{if(equals(length(body('Find_problems')), 0), '<p>No problems 🎉</p>', concat('<p><b>Needs attention:</b></p>', body('Problems_table')))}"
     "<p style=\"color:#666\">Full list for everyone: OneDrive ▸ Mail Merge ▸ @{outputs('Report_file_name')}</p>"
     "</div>"
@@ -209,9 +217,9 @@ definition = {
                         "inputs": {"variables": [{"name": "sent", "type": "integer", "value": 0}]}},
         "Set_up_failed": {"runAfter": {"Set_up_sent": ["Succeeded"]}, "type": "InitializeVariable",
                           "inputs": {"variables": [{"name": "failed", "type": "integer", "value": 0}]}},
-        "Set_up_skipped": {"runAfter": {"Set_up_failed": ["Succeeded"]}, "type": "InitializeVariable",
-                           "inputs": {"variables": [{"name": "skipped", "type": "integer", "value": 0}]}},
-        "Set_up_teams": {"runAfter": {"Set_up_skipped": ["Succeeded"]}, "type": "InitializeVariable",
+        "Set_up_links": {"runAfter": {"Set_up_failed": ["Succeeded"]}, "type": "InitializeVariable",
+                         "inputs": {"variables": [{"name": "links", "type": "array", "value": []}]}},
+        "Set_up_teams": {"runAfter": {"Set_up_links": ["Succeeded"]}, "type": "InitializeVariable",
                          "inputs": {"variables": [{"name": "teamsStatus", "type": "string", "value": "—"}]}},
         "Read_the_mail_list": op("shared_onedriveforbusiness", "GetFileContentByPath",
                                  {"path": "/Mail Merge/mail-list.json", "inferContentType": False},
@@ -249,7 +257,7 @@ definition = {
             "actions": {
                 "Send_the_report": op("shared_office365", "SendEmailV2", {
                     "emailMessage/To": f"@{LIST}?['reportTo']",
-                    "emailMessage/Subject": "Delivery report – @{" + LIST + "?['event']}: @{variables('sent')} sent, @{variables('failed')} failed, @{variables('skipped')} skipped",
+                    "emailMessage/Subject": "Delivery report – @{" + LIST + "?['event']}: @{variables('sent')} sent, @{variables('failed')} failed",
                     "emailMessage/Body": report_email_body,
                     "emailMessage/Importance": "@{if(greater(variables('failed'), 0), 'High', 'Normal')}",
                 }),
@@ -304,7 +312,7 @@ manifest = {
     "schema": "1.0",
     "details": {
         "displayName": "Mail Merge - Send",
-        "description": "Mavericks Studio v3: one email (+ optional Teams ping) per person in OneDrive /Mail Merge, never twice, with a delivery report.",
+        "description": "Mavericks Studio v4: one email (+ optional Teams ping with the certificate link) per person in OneDrive /Mail Merge, with a delivery report.",
         "createdTime": "2026-11-09T15:00:00.0000000Z",
         "packageTelemetryId": "8f9a0b1c-2d3e-4f5a-9b6c-7d8e9f0a1b2c",
         "creator": "N/A",

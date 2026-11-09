@@ -135,8 +135,8 @@
               </label>
               <button id="sampleXls" class="btn link small">Download sample sheet</button>
             </div>
-            <p class="muted small">Excel columns: <b>Name</b> and <b>Email</b> (email is only needed for sending).</p>
-            <textarea id="namesBox" rows="8" placeholder="Or paste one per line:&#10;Venkatesh Ragipati, venkatesh@company.com&#10;Priya Sharma&#10;Arjun K, arjun@company.com"></textarea>
+            <p class="muted small">Excel columns: <b>Name</b>, plus <b>Email</b> and/or <b>Emp ID</b> for sending (no email → EmpID@hexaware.com).</p>
+            <textarea id="namesBox" rows="8" placeholder="Or paste one per line:&#10;Venkatesh Ragipati, 2000168956&#10;Priya Sharma, priya.sharma@gmail.com&#10;Arjun K, arjun.k@hexaware.com"></textarea>
             <div id="namesStats" class="stats"></div>
           </div>
 
@@ -149,10 +149,11 @@
               <button data-fmt="jpg">JPG</button>
             </div>
             <p class="muted small" id="fmtHint"></p>
-            <button id="genCerts" class="btn primary block">Generate &amp; download ZIP</button>
+            <button id="genCerts" class="btn primary block">Generate mail ZIP (to send)</button>
+            <button id="dlCerts" class="btn ghost block">⬇ Download certificates only</button>
             <div class="progress" id="certProg" hidden><div></div><span></span></div>
             <p class="test-flag warn small" hidden>🧪 Test mode is on — the mail list will have only 3 emails, all to you.</p>
-            <p class="muted small">The ZIP has a <code>Mail Merge</code> folder ready for Power Automate (see <a href="#" data-goto="send">Send emails</a>).</p>
+            <p class="muted small"><b>Mail ZIP</b> = certificates + mail list for Power Automate (<a href="#" data-goto="send">Send emails</a>). <b>Download only</b> = just the files in the ticked formats (one file if it's one person).</p>
           </div>
         </div>
 
@@ -328,11 +329,13 @@
               <input id="mReportTo" type="email" placeholder="you@hexaware.com" />
             </label>
             <p id="mReportWarn" class="warn small" hidden>That doesn't look like an email address.</p>
-            <label class="check" style="margin-top:12px"><input id="mSkipSent" type="checkbox" /> <span><b>Never send the same thing twice</b> — skip people who already received this email for this event</span></label>
-            <label class="check"><input id="mTeams" type="checkbox" /> <span><b>Also ping them in Microsoft Teams</b></span></label>
+            <label>Company email domain <span class="hint">(Emp ID 2000168956 → 2000168956@<span id="mDomainEcho">hexaware.com</span>)</span>
+              <input id="mDomain" type="text" value="hexaware.com" />
+            </label>
+            <label class="check" style="margin-top:12px"><input id="mTeams" type="checkbox" /> <span><b>Also send it on Microsoft Teams</b></span></label>
             <div class="teams-only opt-sub">
-              <label>Teams works for colleagues on <input id="mDomain" class="inline-input" type="text" value="hexaware.com" /> — others (e.g. Gmail) get the email only.</label>
-              <p class="muted small">Messages come from the <b>Workflows</b> bot in Teams. Teams allows it about 5 messages a minute, so with Teams on the flow sends one person every 12 s (300 people ≈ 1 hour, runs on its own).</p>
+              <p class="small" style="margin:0">Each person also gets a Teams chat with your message <b>and a link to their certificate</b> (PDF/PNG/JPG). It goes to their company email, or <i>EmpID</i>@domain when you gave an Emp ID. Gmail/outside people get the email only.</p>
+              <p class="muted small">Sent by the <b>Workflows</b> bot. Certificates are kept in OneDrive ▸ <code>Mail Merge Certificates</code> so the links keep working; only colleagues can open them. Teams allows ~5 messages a minute, so with Teams on the flow does one person every 12 s (300 people ≈ 1 hour, runs on its own). Voucher codes are never put in Teams.</p>
             </div>
           </div>
 
@@ -419,7 +422,7 @@
           <h3>One-time setup · about 3 minutes</h3>
           <ol class="steps">
             <li><b>Check OneDrive syncs on your laptop:</b> open File Explorer — you should see <b>OneDrive - Hexaware</b> in the left sidebar. <span class="muted">(If not, open the OneDrive app from the Start menu and sign in with your Hexaware account.)</span></li>
-            <li><a class="btn primary small" href="power-automate/Mail-Merge-Send.zip" download>⬇ Download the flow (v3)</a> <span class="muted">— keep it zipped</span></li>
+            <li><a class="btn primary small" href="power-automate/Mail-Merge-Send.zip" download>⬇ Download the flow (v4)</a> <span class="muted">— keep it zipped</span></li>
             <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">make.powerautomate.com</a> ▸ <b>My flows</b>. If you imported an older <code>Mail Merge - Send</code>, delete it (⋯ ▸ Delete).</li>
             <li><b>Import</b> ▸ <b>Import Package (Legacy)</b> ▸ <b>Upload</b> the zip.</li>
             <li>Under <b>Related resources</b> click <b>Select during import</b> for <b>OneDrive for Business</b>, <b>Office 365 Outlook</b> and <b>Microsoft Teams</b> ▸ pick your account (or <i>+ Create new</i>) ▸ <b>Save</b>. Then <b>Import</b>.</li>
@@ -434,7 +437,7 @@
             <li>Right-click the ZIP in Downloads ▸ <b>Extract All</b> ▸ <b>Browse</b> ▸ pick <b>OneDrive - Hexaware</b> ▸ <b>Extract</b>. Wait for the green ✓ on the new <code>Mail Merge</code> folder (synced).</li>
             <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">Power Automate</a> ▸ <b>My flows</b> ▸ <code>Mail Merge - Send</code> ▸ <b>Run</b> ▸ <b>Run flow</b>.</li>
           </ol>
-          <p class="muted small">Works for any number of people — sent one after another (about 2–3 s each, or 12 s with Teams on). You can close the page; it keeps going. When it's done, the delivery report lands in your inbox and a full CSV is saved in OneDrive ▸ Mail Merge. The <code>Mail Merge History</code> folder remembers who already got what — don't delete it.</p>
+          <p class="muted small">Works for any number of people — sent one after another (about 2–3 s each, or 12 s with Teams on). You can close the page; it keeps going. When it's done, the delivery report lands in your inbox and a full CSV is saved in OneDrive ▸ Mail Merge.</p>
 
           <details>
             <summary>Something went wrong?</summary>
@@ -442,9 +445,9 @@
               <li><b>“Read the mail list” — not found:</b> the <code>Mail Merge</code> folder must sit directly inside <b>OneDrive - Hexaware</b>, not inside another folder. Wait for the green ✓ before running.</li>
               <li><b>Old people got emailed:</b> the old <code>Mail Merge</code> folder was still there — always delete it before extracting.</li>
               <li><b>Email too big:</b> each email carries all formats you ticked. Untick PNG (it's the largest) if attachments get heavy.</li>
-              <li><b>A few emails failed:</b> the delivery report lists each one with the reason (usually a mistyped address). Fix them and generate again — people who already got it are skipped automatically.</li>
-              <li><b>Need to send someone the same thing again:</b> untick <i>Never send the same thing twice</i> for that run.</li>
-              <li><b>Teams says failed:</b> the person may be outside Hexaware, or Teams has the Workflows app blocked — the email still went out.</li>
+              <li><b>A few emails failed:</b> the delivery report lists each one with the reason (usually a mistyped address). Fix those people and generate a ZIP with just them.</li>
+              <li><b>No Teams message:</b> check the report's Teams column. “—” means no company address/Emp ID for that person (or test email isn't a company address). “Failed …” usually means the Workflows app is blocked in Teams — the email still went out.</li>
+              <li><b>Teams message but no certificate link:</b> OneDrive company-wide sharing is switched off by IT; the report says “no file link”.</li>
               <li><b>Sending from a team mailbox:</b> in the flow replace <i>Send the email</i> with <i>Send an email from a shared mailbox (V2)</i> (needs Send-As rights).</li>
             </ul>
           </details>

@@ -110,10 +110,10 @@
     const r = recipients();
     const el = $("#vRecStats");
     if (!r.length) { el.innerHTML = ""; return; }
-    const bad = r.filter((p) => !p.email).length;
+    const bad = r.filter((p) => !p.email && !p.emp).length;
     let h = `<span class="ok">${r.length} recipients</span>`;
     if (nV && r.length !== nV) h += ` · <span class="warn">${nV} vouchers vs ${r.length} recipients — only ${Math.min(nV, r.length)} will be paired</span>`;
-    if (bad) h += ` · <span class="warn">${bad} line(s) without an email</span>`;
+    if (bad) h += ` · <span class="warn">${bad} line(s) without an email or Emp ID</span>`;
     el.innerHTML = h;
   }
 
@@ -152,10 +152,10 @@
       for (let i = 0; i < n; i++) {
         const v = list[i], p = r[i];
         // each person's own voucher page goes with their email as a Word attachment
-        const file = namer(safeName(p.name || p.email.split("@")[0])) + ".docx";
+        const file = namer(safeName(p.name || (p.email || p.emp || "voucher").split("@")[0])) + ".docx";
         zip.file("Mail Merge/" + file, await V.buildVoucherDocx(JSZip, templateBytes, d, [v], "blob"));
         people.push({
-          name: p.name || "Candidate", email: p.email, files: [{ Name: file, Path: file }],
+          name: p.name || "Candidate", email: p.email, emp: p.emp, files: [{ Name: file, Path: file }],
           vars: { Event: d.eventName, Brand: d.brand, RefID: v.ref, Pin: v.pin, Expiry: v.expiry, Amount: v.amount },
         });
       }
