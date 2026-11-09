@@ -1,12 +1,15 @@
 """Builds power-automate/Mail-Merge-Send.zip — a Power Automate flow package you import via
 My flows > Import > Import Package (Legacy).
 
-The flow:  Manually trigger
-           -> Read the mail list   (OneDrive: /Mail Merge/mail-list.json)
-           -> Send to each person  (for each row, one at a time)
-                -> Get their file  (OneDrive: /Mail Merge/<File>)
-                -> Send the email  (Outlook: To, Subject, Body, attachment)
-                -> Wait 2 seconds
+v2 flow:  Manually trigger
+          -> Start an empty attachment list
+          -> Read the mail list            (OneDrive: /Mail Merge/mail-list.json -> list of parts)
+          -> For each part                 (mail-list-part-NNN.json, keeps texts under PA's 131k limit)
+               -> Send to each person      (one at a time)
+                    -> Clear attachments
+                    -> Get each file -> Get the file -> Add to attachments   (PDF + PNG + JPG / Word)
+                    -> Send the email      (Outlook: To, Subject, Body, all attachments)
+                    -> Wait 2 seconds
 
 Paths are used instead of file IDs so the package works in anyone's OneDrive.
 Run:  python3 tools/build_flow_package.py
@@ -18,8 +21,8 @@ import zipfile
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUT = ROOT / "power-automate" / "Mail-Merge-Send.zip"
 
-FLOW_ID = "6f1c2b7e-3d4a-4e5f-9a8b-1c2d3e4f5a6b"     # package resource id / folder
-FLOW_NAME = "9b8a7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d"   # flow name inside definition
+FLOW_ID = "8d2e4f6a-1b3c-4d5e-9f7a-2b4c6d8e0f1a"     # package resource id / folder
+FLOW_NAME = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d"   # flow name inside definition
 API_OD = "2a4c6e8f-1b3d-4f5a-8c7e-9d0b2a4c6e8f"
 API_O365 = "3b5d7f9a-2c4e-4a6b-9d8f-0e1c3b5d7f9a"
 CONN_OD = "4c6e8a0b-3d5f-4b7c-8e9a-1f2d4c6e8a0b"
@@ -44,8 +47,23 @@ def op(api, operation, params, run_after):
     }
 
 
-ITEM = "items('Send_to_each_person')"
+PERSON = "items('Send_to_each_person')"
+FILE = "items('Get_each_file')"
 
+def loop(foreach, actions, run_after, description):
+    return {
+        "runAfter": run_after,
+        "type": "Foreach",
+        "description": description,
+        "foreach": foreach,
+        "runtimeConfiguration": {"concurrency": {"repetitions": 1}},
+        "actions": actions,
+    }
+
+# Mail list layout written by the app (keeps every text Power Automate has to decode
+# well under its 131,072-character expression limit, so any number of people works):
+#   /Mail Merge/mail-list.json          {"parts": ["mail-list-part-001.json", ...], ...}
+#   /Mail Merge/mail-list-part-NNN.json [{"Email","Name","Subject","Body","Files":[{"Name","Path"}]}]
 definition = {
     "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
     "contentVersion": "1.0.0.0",
@@ -61,41 +79,76 @@ definition = {
         }
     },
     "actions": {
+        "Start_an_empty_attachment_list": {
+            "runAfter": {},
+            "type": "InitializeVariable",
+            "inputs": {"variables": [{"name": "attachments", "type": "array", "value": []}]},
+        },
         "Read_the_mail_list": dict(
             op("shared_onedriveforbusiness", "GetFileContentByPath",
-               {"path": "/Mail Merge/mail-list.json", "inferContentType": False}, {}),
-            description="Reads Mail Merge/mail-list.json that the app put in the ZIP",
+               {"path": "/Mail Merge/mail-list.json", "inferContentType": False},
+               {"Start_an_empty_attachment_list": ["Succeeded"]}),
+            description="Mail Merge/mail-list.json lists the parts of the mailing",
         ),
-        "Send_to_each_person": {
-            "runAfter": {"Read_the_mail_list": ["Succeeded"]},
-            "type": "Foreach",
-            "description": "One email per row, one at a time",
-            "foreach": "@json(base64ToString(body('Read_the_mail_list')?['$content']))",
-            "runtimeConfiguration": {"concurrency": {"repetitions": 1}},
-            "actions": {
-                "Get_their_file": op(
+        "For_each_part": loop(
+            "@json(base64ToString(body('Read_the_mail_list')?['$content']))?['parts']",
+            {
+                "Read_this_part": op(
                     "shared_onedriveforbusiness", "GetFileContentByPath",
-                    {"path": f"@{{concat('/Mail Merge/', {ITEM}?['File'])}}", "inferContentType": False}, {}),
-                "Send_the_email": op(
-                    "shared_office365", "SendEmailV2",
+                    {"path": "@{concat('/Mail Merge/', items('For_each_part'))}", "inferContentType": False}, {}),
+                "Send_to_each_person": loop(
+                    "@json(base64ToString(body('Read_this_part')?['$content']))",
                     {
-                        "emailMessage/To": f"@{ITEM}?['Email']",
-                        "emailMessage/Subject": f"@{ITEM}?['Subject']",
-                        "emailMessage/Body": f"@{ITEM}?['Body']",
-                        "emailMessage/Attachments": [
-                            {"Name": f"@{ITEM}?['FileName']", "ContentBytes": "@body('Get_their_file')?['$content']"}
-                        ],
-                        "emailMessage/Importance": "Normal",
+                        "Clear_attachments": {
+                            "runAfter": {},
+                            "type": "SetVariable",
+                            "inputs": {"name": "attachments", "value": []},
+                        },
+                        "Get_each_file": loop(
+                            f"@{PERSON}?['Files']",
+                            {
+                                "Get_the_file": op(
+                                    "shared_onedriveforbusiness", "GetFileContentByPath",
+                                    {"path": f"@{{concat('/Mail Merge/', {FILE}?['Path'])}}", "inferContentType": False}, {}),
+                                "Add_to_attachments": {
+                                    "runAfter": {"Get_the_file": ["Succeeded"]},
+                                    "type": "AppendToArrayVariable",
+                                    "inputs": {
+                                        "name": "attachments",
+                                        "value": {
+                                            "Name": f"@{FILE}?['Name']",
+                                            "ContentBytes": "@body('Get_the_file')?['$content']",
+                                        },
+                                    },
+                                },
+                            },
+                            {"Clear_attachments": ["Succeeded"]},
+                            "PDF / PNG / JPG / Word files for this person",
+                        ),
+                        "Send_the_email": op(
+                            "shared_office365", "SendEmailV2",
+                            {
+                                "emailMessage/To": f"@{PERSON}?['Email']",
+                                "emailMessage/Subject": f"@{PERSON}?['Subject']",
+                                "emailMessage/Body": f"@{PERSON}?['Body']",
+                                "emailMessage/Attachments": "@variables('attachments')",
+                                "emailMessage/Importance": "Normal",
+                            },
+                            {"Get_each_file": ["Succeeded"]}),
+                        "Wait_2_seconds": {
+                            "runAfter": {"Send_the_email": ["Succeeded", "Failed", "Skipped"]},
+                            "type": "Wait",
+                            "description": "Stays under Outlook's sending limit",
+                            "inputs": {"interval": {"count": 2, "unit": "Second"}},
+                        },
                     },
-                    {"Get_their_file": ["Succeeded"]}),
-                "Wait_2_seconds": {
-                    "runAfter": {"Send_the_email": ["Succeeded", "Failed"]},
-                    "type": "Wait",
-                    "description": "Stays under Outlook's sending limit",
-                    "inputs": {"interval": {"count": 2, "unit": "Second"}},
-                },
+                    {"Read_this_part": ["Succeeded"]},
+                    "One email per person, one at a time",
+                ),
             },
-        },
+            {"Read_the_mail_list": ["Succeeded"]},
+            "Big mailings are split into parts",
+        ),
     },
 }
 
@@ -130,7 +183,7 @@ manifest = {
     "schema": "1.0",
     "details": {
         "displayName": "Mail Merge - Send",
-        "description": "Sends each person in OneDrive /Mail Merge/mail-list.json their own email and attachment (Mail Merge Studio).",
+        "description": "Mail Merge Studio v2: sends each person in OneDrive /Mail Merge their own email with all their attachments. Any number of people.",
         "createdTime": "2026-11-09T13:30:00.0000000Z",
         "packageTelemetryId": "7e8f9a0b-1c2d-4e3f-8a4b-5c6d7e8f9a0b",
         "creator": "N/A",

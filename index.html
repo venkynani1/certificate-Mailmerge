@@ -137,11 +137,13 @@
 
           <div class="card sticky-gen">
             <div class="card-head"><span class="step">4</span><h2>Generate</h2></div>
+            <p class="muted small" style="margin:0 0 6px">Formats — tick one or more:</p>
             <div class="seg" id="fmtSeg">
-              <button data-fmt="png">PNG</button>
               <button data-fmt="pdf">PDF</button>
-              <button data-fmt="both">Both</button>
+              <button data-fmt="png">PNG</button>
+              <button data-fmt="jpg">JPG</button>
             </div>
+            <p class="muted small" id="fmtHint"></p>
             <button id="genCerts" class="btn primary block">Generate &amp; download ZIP</button>
             <div class="progress" id="certProg" hidden><div></div><span></span></div>
             <p class="test-flag warn small" hidden>🧪 Test mode is on — the mail list will have only 3 emails, all to you.</p>
@@ -251,23 +253,56 @@
         <div class="send-left">
           <div class="card">
             <div class="card-head"><h2>What is mail merge?</h2></div>
-            <p>Mail merge joins <b>one template</b> with <b>a list of people</b> to make a personal copy for everyone — 200 rows in, 200 finished certificates or emails out, each with the right name and details.</p>
+            <p>Mail merge joins <b>one template</b> with <b>a list of people</b> to make a personal copy for everyone — 200 rows in, 200 finished certificates or emails out.</p>
             <div class="flow-pills">
               <span>📄 Template</span><span class="arrow">+</span><span>📋 List</span><span class="arrow">→</span><span>✉️ One copy each</span>
             </div>
-            <p class="muted small">This app does the <b>making</b> (certificates, voucher pages, email text). <b>Power Automate</b> — part of your Microsoft 365 login — does the <b>sending</b> from your own Outlook mailbox. Works with new Outlook, no macros.</p>
+            <p class="muted small">This app does the <b>making</b>. <b>Power Automate</b> (in your Microsoft 365) does the <b>sending</b> from your own mailbox.</p>
           </div>
 
           <div class="card">
             <div class="card-head"><h2>Email text</h2></div>
-            <p class="muted small">Filled in for every person when you download a ZIP. Placeholders: <code>{Name}</code> <code>{Event}</code>; vouchers also <code>{Brand}</code> <code>{RefID}</code> <code>{Pin}</code> <code>{Expiry}</code> <code>{Amount}</code>.</p>
+            <p class="muted small">Just write the message. <b>“Dear &lt;participant name&gt;,”</b> is added at the top for you. Coloured chips like <span class="var-chip">Event name</span> are filled in per email — click a button to add one; they can't be broken by accident.</p>
+
             <h3>Certificates</h3>
-            <label>Subject <input id="mCertSubject" type="text" /></label>
-            <label>Body <textarea id="mCertBody" rows="8"></textarea></label>
+            <label class="ed-label">Subject</label>
+            <div id="mCertSubject" class="chip-input single" contenteditable="true" spellcheck="true"></div>
+            <div class="ins-row"><button class="btn ghost small ins-chip" data-target="mCertSubject" data-var="Event">+ Event name</button></div>
+            <label class="ed-label">Message <span class="hint">(after “Dear &lt;name&gt;,” — the certificate is attached)</span></label>
+            <div id="mCertBody" class="chip-input" contenteditable="true" spellcheck="true"></div>
+            <div class="ins-row">
+              <button class="btn ghost small ins-chip" data-target="mCertBody" data-var="Event">+ Event name</button>
+              <button class="btn ghost small ins-chip" data-target="mCertBody" data-var="Name">+ Participant name</button>
+            </div>
+
             <h3>Vouchers</h3>
-            <label>Subject <input id="mVSubject" type="text" /></label>
-            <label>Body <textarea id="mVBody" rows="10"></textarea></label>
+            <label class="ed-label">Subject</label>
+            <div id="mVSubject" class="chip-input single" contenteditable="true" spellcheck="true"></div>
+            <div class="ins-row">
+              <button class="btn ghost small ins-chip" data-target="mVSubject" data-var="Event">+ Event name</button>
+              <button class="btn ghost small ins-chip" data-target="mVSubject" data-var="Brand">+ Voucher brand</button>
+            </div>
+            <label class="ed-label">Message <span class="hint">(before the voucher details)</span></label>
+            <div id="mVBody" class="chip-input" contenteditable="true" spellcheck="true"></div>
+            <div class="ins-row">
+              <button class="btn ghost small ins-chip" data-target="mVBody" data-var="Event">+ Event name</button>
+              <button class="btn ghost small ins-chip" data-target="mVBody" data-var="Brand">+ Voucher brand</button>
+              <button class="btn ghost small ins-chip" data-target="mVBody" data-var="Name">+ Participant name</button>
+            </div>
+            <div class="auto-block">🧾 Voucher details table (Reference ID · Pin · Expiry · Amount) — added automatically</div>
+            <label class="ed-label">Closing <span class="hint">(after the voucher details)</span></label>
+            <div id="mVClosing" class="chip-input" contenteditable="true" spellcheck="true"></div>
             <button id="mReset" class="btn link small">Reset email text</button>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><h2>Preview</h2>
+              <div class="seg mini" style="margin-left:auto">
+                <button data-preview="cert" class="active">Certificate</button>
+                <button data-preview="voucher">Voucher</button>
+              </div>
+            </div>
+            <div id="mailPreview" class="mail-preview"></div>
           </div>
 
           <div class="card test-card">
@@ -282,50 +317,39 @@
         <div class="card guide">
           <div class="card-head"><h2>Send with Power Automate</h2></div>
           <div class="how">
-            <div><b>1</b><span>Generate here → ZIP contains a <code>Mail Merge</code> folder (files + <code>mail-list.xlsx</code>)</span></div>
-            <div><b>2</b><span>Drag that folder into your OneDrive ▸ My files</span></div>
-            <div><b>3</b><span>Click <i>Run</i> on your flow — everyone gets their own email &amp; attachment</span></div>
+            <div><b>1</b><span>Generate here — you get a ZIP</span></div>
+            <div><b>2</b><span>Extract it into your <b>OneDrive - Hexaware</b> folder (File Explorer)</span></div>
+            <div><b>3</b><span>Click <i>Run</i> on your flow — everyone gets their own email with all their files</span></div>
           </div>
 
           <h3>One-time setup · about 3 minutes</h3>
           <ol class="steps">
-            <li><a class="btn primary small" href="power-automate/Mail-Merge-Send.zip" download>⬇ Download the ready-made flow</a> <span class="muted">(Mail-Merge-Send.zip — keep it zipped)</span></li>
-            <li>Open <a href="https://make.powerautomate.com" target="_blank" rel="noopener">make.powerautomate.com</a> ▸ <b>My flows</b> ▸ <b>Import</b> ▸ <b>Import Package (Legacy)</b>.</li>
-            <li><b>Upload</b> ▸ pick <code>Mail-Merge-Send.zip</code>. Wait for the details to appear.</li>
-            <li>Under <b>Related resources</b> click <b>Select during import</b> next to <b>OneDrive for Business</b> ▸ choose your Hexaware account (or <i>+ Create new</i>) ▸ <b>Save</b>. Do the same for <b>Office 365 Outlook</b>.</li>
-            <li>Click <b>Import</b>. Then open <b>My flows</b> ▸ <code>Mail Merge - Send</code> ▸ <b>Turn on</b> if it says it's off.</li>
-            <li><b>Test it:</b> tick 🧪 Test mode (left), generate certificates for 2–3 names, extract the ZIP, drag the <code>Mail Merge</code> folder into <b>OneDrive ▸ My files</b>, then <b>Run</b> the flow. You should get 3 [TEST] emails. ✅ Done for good.</li>
+            <li><b>Check OneDrive syncs on your laptop:</b> open File Explorer — you should see <b>OneDrive - Hexaware</b> in the left sidebar. <span class="muted">(If not, open the OneDrive app from the Start menu and sign in with your Hexaware account.)</span></li>
+            <li><a class="btn primary small" href="power-automate/Mail-Merge-Send.zip" download>⬇ Download the flow (v2)</a> <span class="muted">— keep it zipped</span></li>
+            <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">make.powerautomate.com</a> ▸ <b>My flows</b>. If you imported the old <code>Mail Merge - Send</code>, delete it (⋯ ▸ Delete).</li>
+            <li><b>Import</b> ▸ <b>Import Package (Legacy)</b> ▸ <b>Upload</b> the zip.</li>
+            <li>Under <b>Related resources</b> click <b>Select during import</b> for <b>OneDrive for Business</b> and for <b>Office 365 Outlook</b> ▸ pick your account ▸ <b>Save</b>. Then <b>Import</b>.</li>
+            <li>Open the flow ▸ <b>Turn on</b>.</li>
+            <li><b>Test:</b> tick 🧪 Test mode, generate certificates for 2–3 names, then follow “Every event” below. You should get 3 [TEST] emails.</li>
           </ol>
 
-          <h3>Every event · about 2 minutes</h3>
+          <h3>Every event · about 1 minute</h3>
           <ol class="steps">
-            <li>Untick 🧪 Test mode. Generate certificates (or the voucher <b>mail kit</b>) and extract the ZIP.</li>
-            <li>In OneDrive ▸ My files, <b>delete the old <code>Mail Merge</code> folder</b>, then drag in the new one.</li>
-            <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">Power Automate</a> ▸ <b>My flows</b> ▸ <code>Mail Merge - Send</code> ▸ <b>Run</b> ▸ <b>Run flow</b>. Watch the run history for any ❌.</li>
+            <li>Untick 🧪 Test mode. Generate certificates (or the voucher <b>mail kit</b>).</li>
+            <li>In File Explorer ▸ <b>OneDrive - Hexaware</b>: <b>delete the old <code>Mail Merge</code> folder</b>.</li>
+            <li>Right-click the ZIP in Downloads ▸ <b>Extract All</b> ▸ <b>Browse</b> ▸ pick <b>OneDrive - Hexaware</b> ▸ <b>Extract</b>. Wait for the green ✓ on the new <code>Mail Merge</code> folder (synced).</li>
+            <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">Power Automate</a> ▸ <b>My flows</b> ▸ <code>Mail Merge - Send</code> ▸ <b>Run</b> ▸ <b>Run flow</b>.</li>
           </ol>
-
-          <details>
-            <summary>Import not allowed? Build the flow by hand instead</summary>
-            <p class="muted small">If the Import button is missing or the import fails (some companies block it), build the same flow yourself:</p>
-            <ol class="steps">
-              <li><b>+ Create ▸ Instant cloud flow</b> ▸ name <code>Mail Merge - Send</code> ▸ <b>Manually trigger a flow</b> ▸ Create.</li>
-              <li><b>+ ▸ List rows present in a table</b> (Excel Online (Business)): Location <b>OneDrive for Business</b>, Library <b>OneDrive</b>, File <code>/Mail Merge/mail-list.xlsx</code>, Table <code>MailList</code>. Settings ▸ Pagination on, threshold <code>5000</code>.</li>
-              <li><b>+ ▸ Get file content using path</b> (OneDrive for Business): File Path <code>/Mail Merge/</code> + dynamic <b>File</b>. A <b>For each</b> is added automatically.</li>
-              <li>Inside For each: <b>Send an email (V2)</b>: To <b>Email</b>, Subject <b>Subject</b>, Body <b>Body</b>; Advanced ▸ Attachments: Name <b>FileName</b>, Content <b>File Content</b>.</li>
-              <li>Inside For each: <b>Delay</b> 2 seconds. Save.</li>
-            </ol>
-            <p class="muted small">With this hand-built version, <b>don't delete</b> the Mail Merge folder each event — drag the new one in and choose <b>Replace</b> (the Excel step is linked to that exact file).</p>
-          </details>
+          <p class="muted small">Works for any number of people — big lists are split into parts automatically and sent one after another (about 2–3 seconds per email, so 300 people ≈ 15 minutes; you can close the page, it keeps going).</p>
 
           <details>
             <summary>Something went wrong?</summary>
             <ul>
-              <li><b>"File not found" on Get their file</b> — upload the <code>Mail Merge</code> folder from the ZIP as-is; files must sit directly inside it.</li>
-              <li><b>Old people got emailed again</b> — the old Mail Merge folder was still there; delete it before dragging in the new one.</li>
-              <li><b>"mail-list.json not found"</b> — the folder must be called exactly <code>Mail Merge</code> and sit directly in OneDrive ▸ My files.</li>
-              <li><b>Import says connections are missing</b> — in step 4, use <i>+ Create new</i> to make the OneDrive / Outlook connection, then Save.</li>
-              <li><b>Sending from a team mailbox</b> — open the flow, replace <i>Send the email</i> with <i>Send an email from a shared mailbox (V2)</i> (you need Send-As rights).</li>
-              <li><b>Power Automate won't open</b> — your account may not have it enabled; ask IT for Power Automate (it's in Microsoft 365 E3/E5).</li>
+              <li><b>“Read the mail list” — not found:</b> the <code>Mail Merge</code> folder must sit directly inside <b>OneDrive - Hexaware</b>, not inside another folder. Wait for the green ✓ before running.</li>
+              <li><b>Old people got emailed:</b> the old <code>Mail Merge</code> folder was still there — always delete it before extracting.</li>
+              <li><b>Email too big:</b> each email carries all formats you ticked. Untick PNG (it's the largest) if attachments get heavy.</li>
+              <li><b>A few emails failed:</b> open the run, click the red step to see why (usually a mistyped email). The others still go out.</li>
+              <li><b>Sending from a team mailbox:</b> in the flow replace <i>Send the email</i> with <i>Send an email from a shared mailbox (V2)</i> (needs Send-As rights).</li>
             </ul>
           </details>
         </div>

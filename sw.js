@@ -1,5 +1,5 @@
 /* Offline support: app files cached on install, libraries/fonts cached on first use. */
-const CACHE = "mms-v4";
+const CACHE = "mms-v5";
 const SHELL = [
   "./", "./index.html", "./css/styles.css", "./js/common.js", "./js/cert-engine.js", "./js/text-detect.js", "./js/certificates.js",
   "./js/vouchers.js", "./js/voucher-docx.js", "./js/voucher-template-data.js",

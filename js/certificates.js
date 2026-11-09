@@ -6,7 +6,7 @@
  */
 (function () {
   "use strict";
-  const { $, store, toast, download, safeName, uniqueNamer, parsePeople, EMAIL_RE, mail, writeMailKit } = window.MMS;
+  const { $, store, toast, download, safeName, uniqueNamer, parsePeople, EMAIL_RE, writeMailKit, renderMailPreview } = window.MMS;
   const E = window.CertEngine;
 
   const LAYER_DEFAULT = {
@@ -19,7 +19,7 @@
   const savedLayouts = store.get("certLayouts2", {});
   const groups = [];
   let active = null;
-  let format = store.get("certFormat", "pdf");
+  let formats = store.get("certFormats", ["pdf"]);
   let mode = null;        // {kind:'draw', layerId} | {kind:'pick', field}
   let drag = null;
   let hoverId = null;
@@ -678,6 +678,20 @@
 
   // ---------- generate ----------
   const tick = () => new Promise((r) => setTimeout(r, 0));
+  const MAX_EDGE = 3508, JPG_QUALITY = 0.9;
+  const SIGS = { "image/png": [0x89, 0x50, 0x4e, 0x47], "image/jpeg": [0xff, 0xd8, 0xff] };
+  // Never put a broken image in the ZIP: check the bytes, retry once, otherwise stop with a clear message.
+  async function canvasBlob(c, type, q) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const blob = await new Promise((r) => c.toBlob(r, type, q));
+      if (blob && blob.size > 100) {
+        const head = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+        if (SIGS[type].every((b, i) => head[i] === b)) return blob;
+      }
+      await tick();
+    }
+    throw new Error("the browser couldn't create the image (template too large?). Try fewer names or a smaller PNG.");
+  }
 
   async function generate() {
     if (editing) commitEdit();
@@ -694,54 +708,67 @@
     let done = 0;
     const zip = new JSZip();
     const event = $("#certEvent").value.trim();
-    const multi = targets.length > 1;
-    const fmts = format === "both" ? ["png", "pdf"] : [format];
-    const attachFmt = format === "png" ? "png" : "pdf";
+    const fmts = ["pdf", "png", "jpg"].filter((f) => formats.includes(f));
+    if (!fmts.length) { toast("Pick at least one format (PDF, PNG or JPG).", true); btn.disabled = false; prog.hidden = true; return; }
     const mailRows = [];
-    const off = document.createElement("canvas");
-    const oc = off.getContext("2d");
+    const full = document.createElement("canvas");
+    const fc = full.getContext("2d");
+    const out = document.createElement("canvas");
+    const outCtx = out.getContext("2d");
 
     try {
       for (const g of targets) {
         await ensureFonts(g.layers);
         const W = g.img.naturalWidth, H = g.img.naturalHeight;
         const base = cleanBase(g);
-        off.width = W; off.height = H;
+        full.width = W; full.height = H;
+        // Files stay sharp for print but never huge: longest side at most 3508 px (A4 at 300 dpi)
+        const k = Math.min(1, MAX_EDGE / Math.max(W, H));
+        out.width = Math.round(W * k); out.height = Math.round(H * k);
         const namers = {};
         const nameLayer = g.layers.find(isName) || {};
         for (const p of people(g)) {
-          oc.drawImage(base, 0, 0);
-          g.layers.forEach((l) => E.drawLayer(oc, W, H, l, vars(p.name, g)));
+          fc.drawImage(base, 0, 0);
+          g.layers.forEach((l) => E.drawLayer(fc, W, H, l, vars(p.name, g)));
+          outCtx.fillStyle = "#ffffff"; // JPG/PDF have no transparency — avoid black corners
+          outCtx.fillRect(0, 0, out.width, out.height);
+          outCtx.imageSmoothingQuality = "high";
+          outCtx.drawImage(full, 0, 0, out.width, out.height);
           const display = E.caseName(p.name, nameLayer.textCase === "upper" ? "title" : nameLayer.textCase || "asis");
           const fileBase = safeName(display);
-          let attachPath = "";
+          const files = [];
+          let jpeg = null;
           for (const f of fmts) {
             namers[f] = namers[f] || uniqueNamer();
             const fname = namers[f](fileBase) + "." + f;
-            const file = "Mail Merge/" + fname;
-            if (f === "png") {
-              zip.file(file, await new Promise((r) => off.toBlob(r, "image/png")), { compression: "STORE" });
-            } else {
-              const pdf = new jspdf.jsPDF({ orientation: W >= H ? "landscape" : "portrait", unit: "pt", format: [W * 0.75, H * 0.75], compress: true });
-              pdf.addImage(off.toDataURL("image/jpeg", 0.93), "JPEG", 0, 0, W * 0.75, H * 0.75, undefined, "FAST");
+            let blob;
+            if (f === "png") blob = await canvasBlob(out, "image/png");
+            else if (f === "jpg") blob = jpeg = jpeg || await canvasBlob(out, "image/jpeg", JPG_QUALITY);
+            else {
+              jpeg = jpeg || await canvasBlob(out, "image/jpeg", JPG_QUALITY);
+              const land = out.width >= out.height;
+              const pw = land ? 842 : 842 * out.width / out.height, ph = land ? 842 * out.height / out.width : 842; // A4-sized page
+              const pdf = new jspdf.jsPDF({ orientation: land ? "landscape" : "portrait", unit: "pt", format: [pw, ph], compress: true });
+              pdf.addImage(new Uint8Array(await jpeg.arrayBuffer()), "JPEG", 0, 0, pw, ph, undefined, "NONE");
               pdf.setProperties({ title: `${event ? event + " – " : ""}${display}` });
-              zip.file(file, pdf.output("blob"), { compression: "STORE" });
+              blob = pdf.output("blob");
             }
-            if (f === attachFmt) attachPath = fname;
+            zip.file("Mail Merge/" + fname, blob, { compression: "STORE" });
+            files.push({ Name: fname, Path: fname, size: blob.size });
           }
-          mailRows.push({ name: display, email: p.email, file: attachPath, vars: { Event: event } });
+          mailRows.push({ name: display, email: p.email, files, vars: { Event: event } });
           done++;
           pbar.style.width = (done / total) * 100 + "%";
           lbl.textContent = `${done} / ${total}`;
           if (done % 3 === 0) await tick();
         }
       }
-      const m = mail();
-      const kit = await writeMailKit(zip, { subject: m.certSubject, body: m.certBody, people: mailRows });
+      const kit = await writeMailKit(zip, { kind: "cert", people: mailRows, event });
       lbl.textContent = "Zipping…";
       await tick();
       download(await zip.generateAsync({ type: "blob" }), `${safeName(event || "Certificates")} - Certificates.zip`);
       toast(`✔ ${total} certificates ready` + (kit.test ? " · TEST mode: 3 emails to you" : kit.noEmail ? ` · ${kit.noEmail} without email won't be mailed` : ""));
+      if (kit.biggestMB > 20) setTimeout(() => toast(`Heads-up: one email's attachments are ${kit.biggestMB.toFixed(1)} MB. Outlook allows ~25 MB — untick PNG to keep emails small.`, true), 3800);
     } catch (e) {
       console.error(e);
       toast("Something went wrong: " + e.message, true);
@@ -749,6 +776,11 @@
       btn.disabled = false;
       setTimeout(() => { prog.hidden = true; pbar.style.width = "0"; }, 1500);
     }
+  }
+
+  function fmtHint() {
+    const n = formats.length;
+    return n > 1 ? `Each email will have all ${n} files attached (${formats.map((f) => f.toUpperCase()).join(" + ")}).` : `Each email gets the ${formats[0].toUpperCase()} attached.`;
   }
 
   // ---------- events ----------
@@ -799,19 +831,24 @@
     });
     $("#fSample").addEventListener("input", render);
     $("#showBoxes").addEventListener("change", render);
-    $("#certEvent").addEventListener("input", render);
+    $("#certEvent").addEventListener("input", () => { render(); renderMailPreview(); });
 
     $("#namesBox").addEventListener("input", (e) => { active.text = e.target.value; updateStats(); renderChips(); render(); });
     $("#xlsInput").addEventListener("change", (e) => { if (e.target.files[0]) importSheet(e.target.files[0]); e.target.value = ""; });
     $("#sampleXls").addEventListener("click", sampleSheet);
 
     document.querySelectorAll("#fmtSeg button").forEach((b) => {
-      b.classList.toggle("active", b.dataset.fmt === format);
+      b.classList.toggle("active", formats.includes(b.dataset.fmt));
       b.addEventListener("click", () => {
-        format = b.dataset.fmt; store.set("certFormat", format);
-        document.querySelectorAll("#fmtSeg button").forEach((x) => x.classList.toggle("active", x === b));
+        const f = b.dataset.fmt;
+        formats = formats.includes(f) ? formats.filter((x) => x !== f) : formats.concat(f);
+        if (!formats.length) { formats = [f]; toast("At least one format is needed"); }
+        store.set("certFormats", formats);
+        document.querySelectorAll("#fmtSeg button").forEach((x) => x.classList.toggle("active", formats.includes(x.dataset.fmt)));
+        $("#fmtHint").textContent = fmtHint();
       });
     });
+    $("#fmtHint").textContent = fmtHint();
     $("#genCerts").addEventListener("click", generate);
 
     const ev = $("#certEvent");

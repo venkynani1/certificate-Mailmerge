@@ -77,58 +77,124 @@
     });
   }
 
-  // ---------- email text ----------
+  // ---------- email text (chip editor) ----------
+  // You only write the message. "Dear <name>," is added for you, and the event / brand / name are
+  // chips that can't be half-deleted, so a stray brace can never break the email.
+  const VAR_LABEL = { Name: "Participant name", Event: "Event name", Brand: "Voucher brand" };
   const DEFAULT_MAIL = {
     certSubject: "Your certificate – {Event}",
-    certBody:
-      "Dear {Name},\n\nThank you for being part of {Event}. Please find your certificate attached.\n\nWe appreciate your enthusiasm and look forward to seeing you at future events.\n\nRegards,\nEarly Careers Team",
+    certBody: "Thank you for being part of {Event}. Please find your certificate attached.\n\nWe appreciate your enthusiasm and look forward to seeing you at future events.\n\nRegards,\nEarly Careers Team",
     vSubject: "Your {Brand} voucher – {Event}",
-    vBody:
-      "Dear {Name},\n\nThank you for your enthusiastic participation in {Event}.\n\nAs a token of appreciation, here are your {Brand} voucher details:\n\nReference ID: {RefID}\nPIN: {Pin}\nExpiry Date: {Expiry}\nAmount: {Amount}\n\nRegards,\nEarly Careers Team",
+    vBody: "Thank you for your enthusiastic participation in {Event}.\n\nAs a token of appreciation, here are your {Brand} voucher details:",
+    vClosing: "Regards,\nEarly Careers Team",
   };
-  const mailFields = { certSubject: "#mCertSubject", certBody: "#mCertBody", vSubject: "#mVSubject", vBody: "#mVBody", testEmail: "#mTestEmail" };
+  const escHtml = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const chipHtml = (v) => `<span class="var-chip" contenteditable="false" data-var="${v}">${VAR_LABEL[v]}</span>`;
+  function toEditorHtml(text) {
+    return escHtml(text).replace(/\{(Name|Event|Brand)\}/gi, (m, v) => chipHtml(v.charAt(0).toUpperCase() + v.slice(1).toLowerCase())).replace(/\n/g, "<br>");
+  }
+  function fromEditor(el) {
+    const walk = (n, first) => {
+      if (n.nodeType === 3) return n.nodeValue.replace(/​/g, "").replace(/ /g, " ");
+      if (n.nodeType !== 1) return "";
+      if (n.dataset && n.dataset.var) return "{" + n.dataset.var + "}";
+      if (n.tagName === "BR") return "\n";
+      const inner = Array.from(n.childNodes).map((c, i) => walk(c, i === 0)).join("");
+      return (n.tagName === "DIV" || n.tagName === "P") && n !== el && !first ? "\n" + inner : inner;
+    };
+    return walk(el, true).replace(/\n$/, "");
+  }
+  const editors = {};
+  function chipEditor(id, single) {
+    const el = $("#" + id);
+    el.addEventListener("paste", (e) => { e.preventDefault(); document.execCommand("insertText", false, (e.clipboardData || window.clipboardData).getData("text").replace(single ? /\s*\n\s*/g : /$^/, " ")); });
+    el.addEventListener("keydown", (e) => { if (single && e.key === "Enter") e.preventDefault(); });
+    el.addEventListener("drop", (e) => e.preventDefault());
+    editors[id] = el;
+    return el;
+  }
+  function insertChip(id, v) {
+    const el = editors[id];
+    el.focus();
+    const sel = window.getSelection();
+    if (!sel.rangeCount || !el.contains(sel.anchorNode)) { const r = document.createRange(); r.selectNodeContents(el); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
+    document.execCommand("insertHTML", false, chipHtml(v) + "​");
+  }
+
+  const mailFields = { certSubject: "mCertSubject", certBody: "mCertBody", vSubject: "mVSubject", vBody: "mVBody", vClosing: "mVClosing" };
   function initMail() {
-    const saved = store.get("mail", {});
-    Object.entries(mailFields).forEach(([k, sel]) => {
-      const el = $(sel);
-      el.value = saved[k] != null ? saved[k] : DEFAULT_MAIL[k] || "";
-      el.addEventListener("input", () => { const s = store.get("mail", {}); s[k] = el.value; store.set("mail", s); syncTestFlag(); });
+    const saved = store.get("mail2", {});
+    Object.entries(mailFields).forEach(([k, id]) => {
+      const el = chipEditor(id, /Subject/.test(k));
+      el.innerHTML = toEditorHtml(saved[k] != null ? saved[k] : DEFAULT_MAIL[k]);
+      el.addEventListener("input", () => { const s = store.get("mail2", {}); s[k] = fromEditor(el); store.set("mail2", s); renderMailPreview(); });
     });
-    const t = $("#mTest");
+    $$(".ins-chip").forEach((b) => {
+      b.addEventListener("mousedown", (e) => e.preventDefault());
+      b.addEventListener("click", () => { insertChip(b.dataset.target, b.dataset.var); editors[b.dataset.target].dispatchEvent(new Event("input")); });
+    });
+    const te = $("#mTestEmail"), t = $("#mTest");
+    te.value = saved.testEmail || "";
     t.checked = !!saved.test;
-    t.addEventListener("change", () => { const s = store.get("mail", {}); s.test = t.checked; store.set("mail", s); syncTestFlag(); });
+    te.addEventListener("input", () => { const s = store.get("mail2", {}); s.testEmail = te.value.trim(); store.set("mail2", s); syncTestFlag(); });
+    t.addEventListener("change", () => { const s = store.get("mail2", {}); s.test = t.checked; store.set("mail2", s); syncTestFlag(); });
     $("#mReset").addEventListener("click", () => {
-      Object.entries(DEFAULT_MAIL).forEach(([k, v]) => ($(mailFields[k]).value = v));
-      const s = store.get("mail", {}); Object.keys(DEFAULT_MAIL).forEach((k) => delete s[k]); store.set("mail", s);
-      toast("Email text reset");
+      Object.entries(mailFields).forEach(([k, id]) => (editors[id].innerHTML = toEditorHtml(DEFAULT_MAIL[k])));
+      const s = store.get("mail2", {}); Object.keys(DEFAULT_MAIL).forEach((k) => delete s[k]); store.set("mail2", s);
+      renderMailPreview(); toast("Email text reset");
     });
-    syncTestFlag();
+    $$("[data-preview]").forEach((b) => b.addEventListener("click", () => {
+      $$("[data-preview]").forEach((x) => x.classList.toggle("active", x === b)); renderMailPreview();
+    }));
+    syncTestFlag(); renderMailPreview();
   }
   function mail() {
     const o = {};
-    Object.entries(mailFields).forEach(([k, sel]) => (o[k] = $(sel).value.trim()));
+    Object.entries(mailFields).forEach(([k, id]) => (o[k] = fromEditor(editors[id]).trim()));
+    o.testEmail = $("#mTestEmail").value.trim();
     o.test = $("#mTest").checked && EMAIL_RE.test(o.testEmail);
     return o;
   }
   function syncTestFlag() {
     const on = mail().test;
     $$(".test-flag").forEach((el) => (el.hidden = !on));
-    if ($("#mTest").checked && !EMAIL_RE.test($("#mTestEmail").value)) $("#mTestWarn").hidden = false; else $("#mTestWarn").hidden = true;
+    $("#mTestWarn").hidden = !($("#mTest").checked && !EMAIL_RE.test($("#mTestEmail").value));
   }
-  function textToHtml(text) {
-    const esc = String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    return '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt">' + esc.replace(/\r?\n/g, "<br>") + "</div>";
-  }
+
   function fillVars(text, vars) {
     return String(text || "").replace(/\{(\w+)\}/g, (m, k) => {
       const key = Object.keys(vars).find((v) => v.toLowerCase() === k.toLowerCase());
       return key ? String(vars[key] == null ? "" : vars[key]) : m;
     });
   }
-  const xmlEsc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const textHtml = (t, vars) => escHtml(fillVars(t, vars)).replace(/\r?\n/g, "<br>");
+  function voucherTable(v) {
+    const th = 'style="background:#70AD47;color:#fff;text-align:left;padding:6px 10px;border:1px solid #444"';
+    const td = 'style="padding:6px 10px;border:1px solid #444"';
+    const cols = [["Reference ID", v.RefID], ["Pin", v.Pin], ["Expiry Date", v.Expiry], ["Amount", v.Amount]];
+    return `<table style="border-collapse:collapse;font-family:Calibri,Arial,sans-serif;font-size:11pt;margin:8px 0"><tr>${cols.map((c) => `<th ${th}>${c[0]}</th>`).join("")}</tr>` +
+      `<tr>${cols.map((c) => `<td ${td}>${escHtml(c[1] == null ? "" : c[1])}</td>`).join("")}</tr></table>`;
+  }
+  // kind: "cert" | "voucher"
+  function buildEmail(kind, m, vars) {
+    const greet = `Dear ${escHtml(vars.Name || "Participant")},<br><br>`;
+    let html = greet + (kind === "cert" ? textHtml(m.certBody, vars) : textHtml(m.vBody, vars) + "<br>" + voucherTable(vars) + "<br>" + textHtml(m.vClosing, vars));
+    html = '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt;color:#222">' + html + "</div>";
+    const subject = fillVars(kind === "cert" ? m.certSubject : m.vSubject, vars).replace(/\s+/g, " ").trim();
+    return { subject, html };
+  }
+  function renderMailPreview() {
+    const box = $("#mailPreview"); if (!box) return;
+    const kind = ($("[data-preview].active") || {}).dataset?.preview || "cert";
+    const ev = ($("#certEvent") && $("#certEvent").value.trim()) || ($("#vEvent") && $("#vEvent").value.trim()) || "Mavericks AI Edge";
+    const vars = { Name: "Venkatesh Ragipati", Event: kind === "cert" ? ev : (($("#vEvent") && $("#vEvent").value.trim()) || ev), Brand: ($("#vBrand") && $("#vBrand").value.trim()) || "Amazon",
+      RefID: "H6V6-UX3PPG-DGEY", Pin: "6014879723006652", Expiry: "2027-10-13", Amount: "1000" };
+    const e = buildEmail(kind, mail(), vars);
+    box.innerHTML = `<div class="mp-subject"><span>Subject</span>${escHtml(e.subject)}</div><div class="mp-body">${e.html}</div>`;
+  }
+  const xmlEsc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-  // Excel file with a real Excel *table* named MailList — Power Automate's
-  // "List rows present in a table" only reads tables, not plain cells.
+  // Excel file with a real Excel table named MailList — for checking the list (and hand-built flows).
   async function buildMailXlsx(header, rows) {
     const data = rows.length ? rows : [header.map(() => "")];
     const ws = XLSX.utils.aoa_to_sheet([header].concat(data));
@@ -159,42 +225,54 @@
   }
 
   /**
-   * Writes the "Mail Merge" folder for Power Automate:
-   *   Mail Merge/mail-list.json  (read by the Power Automate flow)
-   *   Mail Merge/mail-list.xlsx  (same rows, Excel table MailList — for checking)
-   * people = [{ email, name, file (path inside "Mail Merge/"), vars }]
-   * Subject/Body are filled in per person here, so one flow works for every event.
+   * Writes the "Mail Merge" folder read by the Power Automate flow:
+   *   Mail Merge/mail-list.json            index: which parts to send
+   *   Mail Merge/mail-list-part-NNN.json   people, max ~60k characters per part (Power Automate
+   *                                        can't decode more than 131,072 characters at once)
+   *   Mail Merge/mail-list.xlsx            same people as an Excel table, to check
+   * people = [{ name, email, files: [{Name, Path}], vars }]
    */
-  async function writeMailKit(zip, { subject, body, people }) {
+  const PART_CHARS = 60000;
+  async function writeMailKit(zip, { kind, people, event }) {
     const m = mail();
-    // people without an email can't be sent to — they're left out of the list
-    let list = m.test ? people.slice(0, 3) : people.filter((p) => p.email);
+    const list = m.test ? people.slice(0, 3) : people.filter((p) => p.email);
     const records = list.map((p) => {
-      const vars = Object.assign({ Name: p.name || "Participant" }, p.vars || {});
+      const vars = Object.assign({}, p.vars || {}, { Name: p.name || "Participant" });
+      const e = buildEmail(kind, m, vars);
       return {
         Email: m.test ? m.testEmail : p.email,
         Name: p.name || "",
-        Subject: (m.test ? "[TEST] " : "") + fillVars(subject, vars),
-        Body: textToHtml(fillVars(body, vars)),
-        FileName: p.file ? p.file.split("/").pop() : "",
-        File: p.file || "",
+        Subject: (m.test ? "[TEST] " : "") + e.subject,
+        Body: e.html,
+        Files: (p.files || []).map((f) => ({ Name: f.Name, Path: f.Path })),
       };
     });
-    const header = ["Email", "Name", "Subject", "Body", "FileName", "File"];
-    // mail-list.json is what the imported Power Automate flow reads; the .xlsx is for you to check
-    zip.file("Mail Merge/mail-list.json", JSON.stringify(records, null, 1));
-    zip.file("Mail Merge/mail-list.xlsx", await buildMailXlsx(header, records.map((r) => header.map((h) => r[h]))));
+    const parts = [];
+    let cur = [], size = 2;
+    records.forEach((r) => {
+      const n = JSON.stringify(r).length + 1;
+      if (cur.length && size + n > PART_CHARS) { parts.push(cur); cur = []; size = 2; }
+      cur.push(r); size += n;
+    });
+    if (cur.length) parts.push(cur);
+    const names = parts.map((_, i) => `mail-list-part-${String(i + 1).padStart(3, "0")}.json`);
+    parts.forEach((part, i) => zip.file("Mail Merge/" + names[i], JSON.stringify(part)));
+    zip.file("Mail Merge/mail-list.json", JSON.stringify({
+      version: 2, kind, event: event || "", createdAt: new Date().toISOString(), count: records.length, test: m.test, parts: names,
+    }, null, 1));
+    const header = ["Email", "Name", "Subject", "Attachments"];
+    zip.file("Mail Merge/mail-list.xlsx", await buildMailXlsx(header, records.map((r) => [r.Email, r.Name, r.Subject, r.Files.map((f) => f.Name).join(", ")])));
     zip.file("READ ME - how to send.txt",
-      "Send these emails with Power Automate (one-time setup: see the 'Send emails' tab in the app).\r\n\r\n" +
-      "1. Extract this ZIP.\r\n" +
-      "2. In OneDrive, delete the old 'Mail Merge' folder.\r\n" +
-      "3. Drag the new 'Mail Merge' folder into OneDrive (My files).\r\n" +
-      "4. Open make.powerautomate.com > My flows > 'Mail Merge - Send' > Run.\r\n" +
-      (m.test ? "\r\nTEST MODE: only 3 emails, all sent to " + m.testEmail + ".\r\n" : ""));
-    return { count: records.length, test: m.test, noEmail: people.filter((p) => !p.email).length };
+      "HOW TO SEND (one-time setup is in the app's 'Send emails' tab)\r\n\r\n" +
+      "1. In File Explorer open 'OneDrive - Hexaware' and DELETE the old 'Mail Merge' folder.\r\n" +
+      "2. Right-click this ZIP > Extract All > Browse > choose 'OneDrive - Hexaware' > Extract.\r\n" +
+      "3. make.powerautomate.com > My flows > 'Mail Merge - Send' > Run > Run flow.\r\n\r\n" +
+      `This mailing: ${records.length} email(s)` + (m.test ? `, TEST MODE - all sent to ${m.testEmail}` : "") + ".\r\n");
+    const biggest = Math.max(0, ...people.map((p) => (p.files || []).reduce((t, f) => t + (f.size || 0), 0)));
+    return { count: records.length, test: m.test, noEmail: people.filter((p) => !p.email).length, parts: names.length, biggestMB: biggest / 1048576 };
   }
 
-  window.MMS = { $, $$, store, toast, download, safeName, uniqueNamer, toCsv, parsePeople, EMAIL_RE, mail, writeMailKit, buildMailXlsx, showTab };
+  window.MMS = { $, $$, store, toast, download, safeName, uniqueNamer, toCsv, parsePeople, EMAIL_RE, mail, writeMailKit, buildMailXlsx, renderMailPreview, showTab };
 
   // ---------- installable app ----------
   let installPrompt = null;

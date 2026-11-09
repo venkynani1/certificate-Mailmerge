@@ -1,7 +1,7 @@
 /* Vouchers: editable letter + pasted voucher codes -> Word doc (one page per voucher) + Power Automate mail kit. */
 (function () {
   "use strict";
-  const { $, store, toast, download, safeName, uniqueNamer, parsePeople, mail, writeMailKit } = window.MMS;
+  const { $, store, toast, download, safeName, uniqueNamer, parsePeople, writeMailKit, renderMailPreview } = window.MMS;
   const V = window.VoucherDocx;
 
   const DEFAULT_LETTER = {
@@ -155,13 +155,12 @@
         const file = namer(safeName(p.name || p.email.split("@")[0])) + ".docx";
         zip.file("Mail Merge/" + file, await V.buildVoucherDocx(JSZip, templateBytes, d, [v], "blob"));
         people.push({
-          name: p.name || "Candidate", email: p.email, file,
+          name: p.name || "Candidate", email: p.email, files: [{ Name: file, Path: file }],
           vars: { Event: d.eventName, Brand: d.brand, RefID: v.ref, Pin: v.pin, Expiry: v.expiry, Amount: v.amount },
         });
       }
       zip.file(`${safeName(d.eventName)} - Vouchers (all pages).docx`, await V.buildVoucherDocx(JSZip, templateBytes, d, list, "blob"));
-      const m = mail();
-      const kit = await writeMailKit(zip, { subject: m.vSubject, body: m.vBody, people });
+      const kit = await writeMailKit(zip, { kind: "voucher", people, event: d.eventName });
       const blob = await zip.generateAsync({ type: "blob" });
       download(blob, `${safeName(d.eventName)} - Voucher mail kit.zip`);
       toast(`✔ Mail kit for ${kit.count} people downloaded` + (kit.test ? " · TEST mode: 3 emails to you" : ""));
@@ -191,7 +190,7 @@
     Object.entries(fields).forEach(([id, k]) => {
       const el = $("#" + id);
       if (s[k] != null) el.value = s[k]; else if (defaults[k] != null) el.value = defaults[k];
-      el.addEventListener("input", () => { save(); renderPreview(); });
+      el.addEventListener("input", () => { save(); renderPreview(); if (id === "vEvent" || id === "vBrand") renderMailPreview(); });
     });
     $("#vSimplify").checked = !!s.simplify;
     ["vSimplify"].forEach((id) => $("#" + id).addEventListener("change", () => { save(); renderPreview(); }));

@@ -1,7 +1,7 @@
 # Sending certificates & vouchers with Power Automate
 
 **Mail merge** = one template + a list of people → a personal copy for everyone.
-Mail Merge Studio makes the copies; Power Automate (part of Microsoft 365) sends them from your own mailbox. Works with the new Outlook, no macros.
+Mail Merge Studio makes the copies; Power Automate (part of Microsoft 365) sends them from your own mailbox.
 
 ## What the app gives you
 
@@ -9,47 +9,51 @@ Every certificate ZIP and voucher mail kit contains:
 
 ```
 Mail Merge/
-  <Name>.pdf / .png / .docx   one file per person
-  mail-list.json              what the imported flow reads
-  mail-list.xlsx              same rows as an Excel table "MailList" (to check, or for a hand-built flow)
+  <Name>.pdf / .png / .jpg / .docx   every format you ticked — all attached to that person's email
+  mail-list.json                     index: which parts to send
+  mail-list-part-001.json …          the people (split so Power Automate never hits its 131,072-character limit)
+  mail-list.xlsx                     the same list as an Excel table, to check
+READ ME - how to send.txt
 ```
 
-Subject and Body are already personalised per row, so one flow handles every event — certificates and vouchers.
+Subject and email body are fully written per person ("Dear <name>," + your message, plus the voucher table for vouchers), so one flow handles every event.
 
-## One-time setup (~3 minutes) — import the ready-made flow
+## One-time setup (~3 minutes)
 
-1. Download [`power-automate/Mail-Merge-Send.zip`](../power-automate/Mail-Merge-Send.zip) (keep it zipped).
-2. <https://make.powerautomate.com> ▸ **My flows ▸ Import ▸ Import Package (Legacy)** ▸ **Upload** the zip.
-3. Under **Related resources**, for **OneDrive for Business** and **Office 365 Outlook** click **Select during import**, pick your account (or *+ Create new*), **Save**.
-4. **Import**. Open the flow and **Turn on** if needed.
-5. Test: in the app turn on **Test mode**, generate a couple of certificates, drag the `Mail Merge` folder into OneDrive ▸ My files, **Run** the flow → 3 `[TEST]` emails.
+1. Make sure **OneDrive - Hexaware** shows in File Explorer's sidebar (OneDrive app signed in).
+2. Download [`power-automate/Mail-Merge-Send.zip`](../power-automate/Mail-Merge-Send.zip) (v2) — keep it zipped.
+3. <https://make.powerautomate.com> ▸ **My flows** — delete any older `Mail Merge - Send`.
+4. **Import ▸ Import Package (Legacy)** ▸ **Upload** the zip.
+5. **Related resources**: *Select during import* for **OneDrive for Business** and **Office 365 Outlook** → your account → **Save** → **Import**.
+6. Open the flow → **Turn on**.
+7. Test with the app's **Test mode** (3 emails, all to you).
 
-The imported flow: *Read the mail list* (`/Mail Merge/mail-list.json`) → *Send to each person* → *Get their file* → *Send the email* → *Wait 2 seconds*. It uses file paths, not file IDs, so it keeps working when you replace the folder.
+The flow: *Read the mail list* → *For each part* → *Send to each person* → (*Get each file* → *Add to attachments*) → *Send the email* → *Wait 2 seconds*.
+It finds files by path, so replacing the folder each event never breaks it. Rebuild: `python3 tools/build_flow_package.py`.
 
-Rebuild the package after changing it: `python3 tools/build_flow_package.py`.
+## Every event (~1 minute)
 
-### If import is blocked — build it by hand
+1. Turn **off** Test mode and generate.
+2. File Explorer ▸ **OneDrive - Hexaware** ▸ delete the old `Mail Merge` folder.
+3. Right-click the ZIP ▸ **Extract All** ▸ **Browse** ▸ **OneDrive - Hexaware** ▸ **Extract**. Wait for the green ✓.
+4. Power Automate ▸ My flows ▸ `Mail Merge - Send` ▸ **Run**.
 
-1. **+ Create ▸ Instant cloud flow** → `Mail Merge - Send` → **Manually trigger a flow**.
-2. **List rows present in a table** (Excel Online (Business)): OneDrive for Business / OneDrive / `/Mail Merge/mail-list.xlsx` / table `MailList`; Settings ▸ Pagination on, threshold 5000.
-3. **Get file content using path** (OneDrive for Business): `/Mail Merge/` + **File** (a For each is added).
-4. Inside For each: **Send an email (V2)** — To **Email**, Subject **Subject**, Body **Body**, Attachments Name **FileName** / Content **File Content**.
-5. Inside For each: **Delay** 2 seconds. Save.
+About 2–3 seconds per email (300 people ≈ 15 minutes); the run continues even if you close the browser.
 
-With the hand-built version, replace the folder's files each event (choose **Replace**) instead of deleting the folder — the Excel step is linked to that exact file.
+## Limits that matter
 
-## Every event (~2 minutes)
-
-1. Turn **off** Test mode, generate, extract the ZIP.
-2. In OneDrive ▸ My files delete the old `Mail Merge` folder, then drag in the new one.
-3. Power Automate ▸ My flows ▸ `Mail Merge - Send` ▸ **Run**. Check the run history for failures.
+| Limit | What the app does |
+|---|---|
+| Power Automate decodes at most 131,072 characters at once | Mail list split into parts of ≤ 60,000 characters |
+| Outlook ~30 emails/minute | 2-second wait between emails |
+| Outlook ~25 MB per email | Images capped at 3508 px (A4 at 300 dpi); app warns if one email's files pass 20 MB |
+| Exchange ~10,000 recipients/day | Far above event sizes |
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| Get file content: file not found | Files must sit directly in `Mail Merge`, not in a sub-folder |
-| mail-list.json not found | Folder must be named exactly `Mail Merge`, directly in OneDrive ▸ My files |
-| Old recipients emailed again | Delete the old `Mail Merge` folder before uploading the new one |
-| Send from a team mailbox | Use *Send an email from a shared mailbox (V2)* in step 6 (needs Send-As rights) |
-| Power Automate not available | Ask IT to enable it for your Microsoft 365 account |
+| Read the mail list: not found | `Mail Merge` must be directly inside **OneDrive - Hexaware**; wait for sync (green ✓) |
+| Old recipients emailed again | Delete the old `Mail Merge` folder before extracting |
+| A few emails failed | Open the run → red step shows why (often a mistyped address); the rest still send |
+| Send from a team mailbox | Replace *Send the email* with *Send an email from a shared mailbox (V2)* (needs Send-As) |
