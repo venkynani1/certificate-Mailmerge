@@ -89,9 +89,17 @@
     vClosing: "Regards,\nEarly Careers Team",
   };
   const escHtml = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const chipHtml = (v) => `<span class="var-chip" contenteditable="false" data-var="${v}">${VAR_LABEL[v]}</span>`;
-  function toEditorHtml(text) {
-    return escHtml(text).replace(/\{(Name|Event|Brand)\}/gi, (m, v) => chipHtml(v.charAt(0).toUpperCase() + v.slice(1).toLowerCase())).replace(/\n/g, "<br>");
+  const attrEsc = (t) => escHtml(t).replace(/"/g, "&quot;");
+  const chipHtml = (v, labels) => `<span class="var-chip" contenteditable="false" data-var="${attrEsc(v)}">${escHtml((labels || VAR_LABEL)[v] || v)}</span>`;
+  // labels: { varName: "Shown label" } — any {varName} found in the text becomes a chip
+  function toEditorHtml(text, labels) {
+    labels = labels || VAR_LABEL;
+    const keys = Object.keys(labels);
+    return String(text).split(/(\{[^{}\n]+\})/g).map((part) => {
+      const m = /^\{([^{}\n]+)\}$/.exec(part);
+      const key = m && keys.find((k) => k.toLowerCase() === m[1].toLowerCase());
+      return key ? chipHtml(key, labels) : escHtml(part);
+    }).join("").replace(/\n/g, "<br>");
   }
   function fromEditor(el) {
     const walk = (n, first) => {
@@ -113,12 +121,12 @@
     editors[id] = el;
     return el;
   }
-  function insertChip(id, v) {
+  function insertChip(id, v, labels) {
     const el = editors[id];
     el.focus();
     const sel = window.getSelection();
     if (!sel.rangeCount || !el.contains(sel.anchorNode)) { const r = document.createRange(); r.selectNodeContents(el); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
-    document.execCommand("insertHTML", false, chipHtml(v) + "​");
+    document.execCommand("insertHTML", false, chipHtml(v, labels) + "​");
   }
 
   const mailFields = { certSubject: "mCertSubject", certBody: "mCertBody", vSubject: "mVSubject", vBody: "mVBody", vClosing: "mVClosing" };
@@ -162,7 +170,7 @@
   }
 
   function fillVars(text, vars) {
-    return String(text || "").replace(/\{(\w+)\}/g, (m, k) => {
+    return String(text || "").replace(/\{([^{}\n]+)\}/g, (m, k) => {
       const key = Object.keys(vars).find((v) => v.toLowerCase() === k.toLowerCase());
       return key ? String(vars[key] == null ? "" : vars[key]) : m;
     });
@@ -233,12 +241,13 @@
    * people = [{ name, email, files: [{Name, Path}], vars }]
    */
   const PART_CHARS = 60000;
-  async function writeMailKit(zip, { kind, people, event }) {
+  // build(person, vars) -> {subject, html} lets other tabs (Power Automate maker) write their own emails
+  async function writeMailKit(zip, { kind, people, event, build }) {
     const m = mail();
     const list = m.test ? people.slice(0, 3) : people.filter((p) => p.email);
     const records = list.map((p) => {
       const vars = Object.assign({}, p.vars || {}, { Name: p.name || "Participant" });
-      const e = buildEmail(kind, m, vars);
+      const e = build ? build(p, vars) : buildEmail(kind, m, vars);
       return {
         Email: m.test ? m.testEmail : p.email,
         Name: p.name || "",
@@ -272,7 +281,8 @@
     return { count: records.length, test: m.test, noEmail: people.filter((p) => !p.email).length, parts: names.length, biggestMB: biggest / 1048576 };
   }
 
-  window.MMS = { $, $$, store, toast, download, safeName, uniqueNamer, toCsv, parsePeople, EMAIL_RE, mail, writeMailKit, buildMailXlsx, renderMailPreview, showTab };
+  window.MMS = { $, $$, store, toast, download, safeName, uniqueNamer, toCsv, parsePeople, EMAIL_RE, mail, writeMailKit, buildMailXlsx, renderMailPreview, showTab,
+    chips: { chipEditor, insertChip, toEditorHtml, fromEditor, escHtml, fillVars } };
 
   // ---------- installable app ----------
   let installPrompt = null;

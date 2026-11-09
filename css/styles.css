@@ -203,3 +203,19 @@ p.warn { margin: 6px 0 0; }
 .mail-preview .mp-subject { padding: 9px 12px; border-bottom: 1px solid var(--line); background: #f7f8fb; font-weight: 600; font-size: 13px; }
 .mail-preview .mp-subject span { color: var(--muted); font-weight: 500; margin-right: 8px; }
 .mail-preview .mp-body { padding: 12px; font-size: 13px; overflow-x: auto; }
+
+.inline-input { display: inline-block; width: 120px; margin: 0 0 0 2px; padding: 2px 6px; border: 1px solid var(--line); border-radius: 6px; font: inherit; font-size: 12px; }
+.chip-input.tall { min-height: 170px; }
+.common-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.common-row { display: grid; grid-template-columns: 1fr 1.6fr auto; gap: 6px; align-items: center; }
+.common-row input { margin: 0; }
+.common-row button { border: 0; background: none; color: var(--danger); font-size: 16px; cursor: pointer; padding: 4px 6px; }
+.ins-chip.k-col { border-color: #b9d7a6; color: #3a6b24; }
+.ins-chip.k-common { border-color: #f5d27a; color: #8a5300; }
+.pk-right { padding: 14px; display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - 140px); overflow: auto; }
+.pk-table { overflow: auto; border: 1px solid var(--line); border-radius: 10px; max-height: 420px; }
+.pk-table table { border-collapse: collapse; width: 100%; font-size: 12px; }
+.pk-table th { position: sticky; top: 0; background: #f7f8fb; text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.pk-table td { padding: 5px 8px; border-bottom: 1px solid #f0f1f6; white-space: nowrap; max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.pk-table tr.bad td { background: #fff4ec; }
+.pk-table .src { font-size: 10.5px; color: var(--muted); margin-left: 4px; }

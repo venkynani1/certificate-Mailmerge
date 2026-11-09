@@ -4,7 +4,8 @@ A browser app that removes the copy-paste work after every event:
 
 1. **Certificates** — upload the PNG/JPG you designed, paste names or import Excel, click where the name goes, and download every certificate as `Name.png`, `Name.pdf` or both, in one ZIP.
 2. **Vouchers** — paste the voucher codes (Reference ID, Pin, Expiry Date, Amount) and get one Word document with **one page per voucher**, using the Hexaware letter template with the logo and Krishna's signature.
-3. **Bulk email with Power Automate** — every ZIP has a `Mail Merge` folder (files + `mail-list.xlsx`); one Power Automate flow sends each person their own email and attachment. Works with new Outlook, no macros.
+3. **Power Automate maker** — any one-off email (credentials, links, reminders): upload participants (Name, Emp ID, optional Email → otherwise EmpID@hexaware.com), an optional details sheet (any columns, matched by Emp ID / Email / Name or row order), common values, write the email with chips → a mail ZIP for the same flow.
+4. **Bulk email with Power Automate** — every ZIP has a `Mail Merge` folder (files + `mail-list.xlsx`); one Power Automate flow sends each person their own email and attachment. Works with new Outlook, no macros.
 
 Everything runs in your browser — names, emails and voucher codes never leave your machine.
 

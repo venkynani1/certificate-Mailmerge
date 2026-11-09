@@ -1,8 +1,8 @@
 /* Offline support: app files cached on install, libraries/fonts cached on first use. */
-const CACHE = "mms-v5";
+const CACHE = "mms-v6";
 const SHELL = [
   "./", "./index.html", "./css/styles.css", "./js/common.js", "./js/cert-engine.js", "./js/text-detect.js", "./js/certificates.js",
-  "./js/vouchers.js", "./js/voucher-docx.js", "./js/voucher-template-data.js",
+  "./js/vouchers.js", "./js/maker.js", "./js/voucher-docx.js", "./js/voucher-template-data.js",
   "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png",
 ];
 self.addEventListener("install", (e) => {

@@ -27,6 +27,7 @@
     <nav class="tabs" role="tablist">
       <button class="tab active" data-tab="certs" role="tab">Certificates</button>
       <button class="tab" data-tab="vouchers" role="tab">Vouchers</button>
+      <button class="tab" data-tab="maker" role="tab">Power Automate maker</button>
       <button class="tab" data-tab="send" role="tab">Send emails</button>
     </nav>
   </header>
@@ -248,6 +249,68 @@
     </section>
 
     <!-- ===================== SEND ===================== -->
+    <section id="tab-maker" class="panel">
+      <div class="layout">
+        <div class="controls">
+          <div class="card">
+            <div class="card-head"><span class="step">1</span><h2>Participants</h2></div>
+            <label class="btn ghost small file-btn">⬆ Upload participants sheet
+              <input id="pkPeople" type="file" accept=".xlsx,.xls,.csv" hidden />
+            </label>
+            <p class="muted small">Columns: <b>Name</b>, <b>Emp ID</b>, and optionally <b>Email</b>. S.No is ignored. If a row has an email (e.g. @gmail.com) it's used as-is; otherwise the email is <b>Emp ID</b>@<input id="pkDomain" class="inline-input" type="text" value="hexaware.com" /></p>
+            <div id="pkPeopleStats" class="stats"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><span class="step">2</span><h2>Details sheet <span class="hint">(optional)</span></h2></div>
+            <label class="btn ghost small file-btn">⬆ Upload details sheet
+              <input id="pkDetails" type="file" accept=".xlsx,.xls,.csv" hidden />
+            </label>
+            <button id="pkDetailsClear" class="btn link small" hidden>Remove</button>
+            <p class="muted small">For things like credentials — Username, Password, URL… any columns. Matched to participants by <b>Emp ID</b>, <b>Email</b> or <b>Name</b> if the sheet has one of those; otherwise row 1 → participant 1, row 2 → participant 2…</p>
+            <div id="pkDetailsStats" class="stats"></div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><span class="step">3</span><h2>Common values <span class="hint">(same in every email)</span></h2></div>
+            <div id="pkCommon" class="common-list"></div>
+            <button id="pkAddCommon" class="btn ghost small">+ Add common value</button>
+            <p class="muted small">e.g. <i>Portal link</i> = https://…, <i>Session date</i> = 20 Nov 2026. Add it to the email with its button below.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><span class="step">4</span><h2>Email</h2></div>
+            <label class="ed-label">Subject</label>
+            <div id="pkSubject" class="chip-input single" contenteditable="true" spellcheck="true"></div>
+            <label class="check"><input id="pkGreet" type="checkbox" checked /> Start with “Dear &lt;participant name&gt;,”</label>
+            <label class="ed-label">Message</label>
+            <div id="pkBody" class="chip-input tall" contenteditable="true" spellcheck="true"></div>
+            <p class="muted small" style="margin-bottom:4px">Click to add to the message (or subject — click into it first):</p>
+            <div id="pkChipButtons" class="ins-row"></div>
+          </div>
+
+          <div class="card sticky-gen">
+            <div class="card-head"><span class="step">5</span><h2>Generate</h2></div>
+            <p class="test-flag warn small" hidden>🧪 Test mode is on — only 3 emails, all to you.</p>
+            <button id="pkGen" class="btn primary block">Download mail ZIP</button>
+            <p class="muted small">Send it exactly like certificates: delete the old <code>Mail Merge</code> folder in <b>OneDrive - Hexaware</b>, extract this ZIP there, run <b>Mail Merge - Send</b>. Same flow — nothing new to build. (<a href="#" data-goto="send">Send emails</a>)</p>
+          </div>
+        </div>
+
+        <div class="preview-wrap">
+          <div class="preview-head">
+            <span>Email preview</span>
+            <span class="row gap small"><button id="pkPrev" class="btn ghost small">‹</button><span id="pkWho" class="muted"></span><button id="pkNext" class="btn ghost small">›</button></span>
+          </div>
+          <div class="pk-right">
+            <div id="pkMail" class="mail-preview"></div>
+            <h3>Who gets what</h3>
+            <div id="pkTable" class="pk-table"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section id="tab-send" class="panel">
       <div class="send-grid">
         <div class="send-left">
@@ -369,5 +432,6 @@
   <script src="js/text-detect.js"></script>
   <script src="js/certificates.js"></script>
   <script src="js/vouchers.js"></script>
+  <script src="js/maker.js"></script>
 </body>
 </html>
