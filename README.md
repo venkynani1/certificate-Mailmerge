@@ -50,10 +50,10 @@ The logo, signature and styles come from `assets/voucher-template.docx` (embedde
 
 See [`docs/POWER-AUTOMATE-GUIDE.md`](docs/POWER-AUTOMATE-GUIDE.md) or the **Send emails** tab in the app.
 
-1. One time: build the `Mail Merge - Send` flow (List rows present in a table → Get file content using path → Send an email (V2) → Delay 2 s).
-2. Every event: generate → extract → drag the `Mail Merge` folder into OneDrive (Replace) → Run the flow.
+1. One time: import `power-automate/Mail-Merge-Send.zip` (My flows ▸ Import ▸ Import Package (Legacy)) and connect your OneDrive and Outlook.
+2. Every event: generate → extract → replace the `Mail Merge` folder in OneDrive → Run the flow.
 
-`mail-list.xlsx` has an Excel table **MailList** with columns Email, Name, Subject, Body, FileName, File, Cc. Subject and Body are already filled in per person, so the same flow works for certificates and vouchers. Test mode (3 emails, all to you) is in the Send emails tab.
+The flow reads `mail-list.json` (Email, Name, Subject, Body, FileName, File); `mail-list.xlsx` has the same rows as an Excel table **MailList**. Subject and Body are already filled in per person, so the same flow works for certificates and vouchers. Test mode (3 emails, all to you) is in the Send emails tab.
 
 ## Files
 

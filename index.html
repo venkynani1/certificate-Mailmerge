@@ -267,7 +267,6 @@
             <h3>Vouchers</h3>
             <label>Subject <input id="mVSubject" type="text" /></label>
             <label>Body <textarea id="mVBody" rows="10"></textarea></label>
-            <label>CC on every email <span class="hint">(optional)</span><input id="mCc" type="text" placeholder="manager@company.com" /></label>
             <button id="mReset" class="btn link small">Reset email text</button>
           </div>
 
@@ -284,49 +283,48 @@
           <div class="card-head"><h2>Send with Power Automate</h2></div>
           <div class="how">
             <div><b>1</b><span>Generate here → ZIP contains a <code>Mail Merge</code> folder (files + <code>mail-list.xlsx</code>)</span></div>
-            <div><b>2</b><span>Upload that folder to your OneDrive</span></div>
+            <div><b>2</b><span>Drag that folder into your OneDrive ▸ My files</span></div>
             <div><b>3</b><span>Click <i>Run</i> on your flow — everyone gets their own email &amp; attachment</span></div>
           </div>
 
-          <h3>One-time setup · about 10 minutes</h3>
+          <h3>One-time setup · about 3 minutes</h3>
           <ol class="steps">
-            <li><b>Make a first ZIP:</b> turn on 🧪 Test mode (left), generate certificates for a couple of names, extract the ZIP and drag the <code>Mail Merge</code> folder into <b>OneDrive ▸ My files</b>. The flow needs the file to exist while you build it.</li>
-            <li>Open <a href="https://make.powerautomate.com" target="_blank" rel="noopener">make.powerautomate.com</a> and sign in with your Hexaware account.</li>
-            <li><b>+ Create ▸ Instant cloud flow</b>. Name it <code>Mail Merge - Send</code>, pick <b>Manually trigger a flow</b>, click <b>Create</b>.</li>
-            <li>Click <b>+</b> under the trigger ▸ search <b>List rows present in a table</b> (Excel Online (Business)):
-              <ul>
-                <li>Location: <b>OneDrive for Business</b> · Document Library: <b>OneDrive</b></li>
-                <li>File: click the folder icon ▸ <code>Mail Merge</code> ▸ <code>mail-list.xlsx</code></li>
-                <li>Table: <code>MailList</code></li>
-                <li><b>Settings</b> tab ▸ <b>Pagination</b> on ▸ Threshold <code>5000</code> <span class="muted">(otherwise it stops at 256 people)</span></li>
-              </ul>
-            </li>
-            <li>Click <b>+</b> ▸ search <b>Get file content using path</b> (OneDrive for Business). In <b>File Path</b> type <code>/Mail Merge/</code> then insert dynamic content <b>File</b> (⚡ icon). Power Automate wraps it in a <b>For each</b> automatically — that's correct.</li>
-            <li>Inside <b>For each</b>, click <b>+</b> ▸ <b>Send an email (V2)</b> (Office 365 Outlook):
-              <ul>
-                <li>To: <b>Email</b> · Subject: <b>Subject</b> · Body: <b>Body</b> <span class="muted">(all dynamic content)</span></li>
-                <li><b>Advanced parameters ▸ Attachments</b>: Name = <b>FileName</b>, Content = <b>File Content</b></li>
-                <li>Advanced parameters ▸ CC: <b>Cc</b></li>
-              </ul>
-            </li>
-            <li>Still inside <b>For each</b>, click <b>+</b> ▸ <b>Delay</b> ▸ Count <code>2</code>, Unit <b>Second</b> <span class="muted">(keeps you under Outlook's sending limit)</span>.</li>
-            <li><b>Save</b> ▸ <b>Test</b> ▸ <i>Manually</i> ▸ <b>Run flow</b>. Allow the connections if asked. Check your inbox for the 3 [TEST] emails. ✅ Setup done — you never edit the flow again.</li>
+            <li><a class="btn primary small" href="power-automate/Mail-Merge-Send.zip" download>⬇ Download the ready-made flow</a> <span class="muted">(Mail-Merge-Send.zip — keep it zipped)</span></li>
+            <li>Open <a href="https://make.powerautomate.com" target="_blank" rel="noopener">make.powerautomate.com</a> ▸ <b>My flows</b> ▸ <b>Import</b> ▸ <b>Import Package (Legacy)</b>.</li>
+            <li><b>Upload</b> ▸ pick <code>Mail-Merge-Send.zip</code>. Wait for the details to appear.</li>
+            <li>Under <b>Related resources</b> click <b>Select during import</b> next to <b>OneDrive for Business</b> ▸ choose your Hexaware account (or <i>+ Create new</i>) ▸ <b>Save</b>. Do the same for <b>Office 365 Outlook</b>.</li>
+            <li>Click <b>Import</b>. Then open <b>My flows</b> ▸ <code>Mail Merge - Send</code> ▸ <b>Turn on</b> if it says it's off.</li>
+            <li><b>Test it:</b> tick 🧪 Test mode (left), generate certificates for 2–3 names, extract the ZIP, drag the <code>Mail Merge</code> folder into <b>OneDrive ▸ My files</b>, then <b>Run</b> the flow. You should get 3 [TEST] emails. ✅ Done for good.</li>
           </ol>
 
           <h3>Every event · about 2 minutes</h3>
           <ol class="steps">
             <li>Untick 🧪 Test mode. Generate certificates (or the voucher <b>mail kit</b>) and extract the ZIP.</li>
-            <li>Drag the new <code>Mail Merge</code> folder into OneDrive ▸ My files and choose <b>Replace</b> when asked. <span class="muted">(Don't delete the folder first — the flow is linked to that file.)</span></li>
-            <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">Power Automate</a> ▸ <b>My flows</b> ▸ <code>Mail Merge - Send</code> ▸ <b>Run</b>. Done — watch the run history for any ❌.</li>
+            <li>In OneDrive ▸ My files, <b>delete the old <code>Mail Merge</code> folder</b>, then drag in the new one.</li>
+            <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">Power Automate</a> ▸ <b>My flows</b> ▸ <code>Mail Merge - Send</code> ▸ <b>Run</b> ▸ <b>Run flow</b>. Watch the run history for any ❌.</li>
           </ol>
+
+          <details>
+            <summary>Import not allowed? Build the flow by hand instead</summary>
+            <p class="muted small">If the Import button is missing or the import fails (some companies block it), build the same flow yourself:</p>
+            <ol class="steps">
+              <li><b>+ Create ▸ Instant cloud flow</b> ▸ name <code>Mail Merge - Send</code> ▸ <b>Manually trigger a flow</b> ▸ Create.</li>
+              <li><b>+ ▸ List rows present in a table</b> (Excel Online (Business)): Location <b>OneDrive for Business</b>, Library <b>OneDrive</b>, File <code>/Mail Merge/mail-list.xlsx</code>, Table <code>MailList</code>. Settings ▸ Pagination on, threshold <code>5000</code>.</li>
+              <li><b>+ ▸ Get file content using path</b> (OneDrive for Business): File Path <code>/Mail Merge/</code> + dynamic <b>File</b>. A <b>For each</b> is added automatically.</li>
+              <li>Inside For each: <b>Send an email (V2)</b>: To <b>Email</b>, Subject <b>Subject</b>, Body <b>Body</b>; Advanced ▸ Attachments: Name <b>FileName</b>, Content <b>File Content</b>.</li>
+              <li>Inside For each: <b>Delay</b> 2 seconds. Save.</li>
+            </ol>
+            <p class="muted small">With this hand-built version, <b>don't delete</b> the Mail Merge folder each event — drag the new one in and choose <b>Replace</b> (the Excel step is linked to that exact file).</p>
+          </details>
 
           <details>
             <summary>Something went wrong?</summary>
             <ul>
-              <li><b>"File not found" on Get file content</b> — the file must be inside <code>Mail Merge</code> directly, not a sub-folder. Upload the folder from the ZIP as-is.</li>
-              <li><b>Old people got emailed again</b> — the flow sends to everyone in <code>mail-list.xlsx</code>; make sure you replaced it with the new one.</li>
-              <li><b>"Excel file not found"</b> — you deleted and re-uploaded the folder. Open the flow, pick the file again in step 4, save.</li>
-              <li><b>Sending from a team mailbox</b> — use <i>Send an email from a shared mailbox (V2)</i> instead of step 6 (you need Send-As rights).</li>
+              <li><b>"File not found" on Get their file</b> — upload the <code>Mail Merge</code> folder from the ZIP as-is; files must sit directly inside it.</li>
+              <li><b>Old people got emailed again</b> — the old Mail Merge folder was still there; delete it before dragging in the new one.</li>
+              <li><b>"mail-list.json not found"</b> — the folder must be called exactly <code>Mail Merge</code> and sit directly in OneDrive ▸ My files.</li>
+              <li><b>Import says connections are missing</b> — in step 4, use <i>+ Create new</i> to make the OneDrive / Outlook connection, then Save.</li>
+              <li><b>Sending from a team mailbox</b> — open the flow, replace <i>Send the email</i> with <i>Send an email from a shared mailbox (V2)</i> (you need Send-As rights).</li>
               <li><b>Power Automate won't open</b> — your account may not have it enabled; ask IT for Power Automate (it's in Microsoft 365 E3/E5).</li>
             </ul>
           </details>

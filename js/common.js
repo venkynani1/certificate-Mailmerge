@@ -86,7 +86,7 @@
     vBody:
       "Dear {Name},\n\nThank you for your enthusiastic participation in {Event}.\n\nAs a token of appreciation, here are your {Brand} voucher details:\n\nReference ID: {RefID}\nPIN: {Pin}\nExpiry Date: {Expiry}\nAmount: {Amount}\n\nRegards,\nEarly Careers Team",
   };
-  const mailFields = { certSubject: "#mCertSubject", certBody: "#mCertBody", vSubject: "#mVSubject", vBody: "#mVBody", cc: "#mCc", testEmail: "#mTestEmail" };
+  const mailFields = { certSubject: "#mCertSubject", certBody: "#mCertBody", vSubject: "#mVSubject", vBody: "#mVBody", testEmail: "#mTestEmail" };
   function initMail() {
     const saved = store.get("mail", {});
     Object.entries(mailFields).forEach(([k, sel]) => {
@@ -160,7 +160,8 @@
 
   /**
    * Writes the "Mail Merge" folder for Power Automate:
-   *   Mail Merge/mail-list.xlsx  (table MailList: Email, Name, Subject, Body, FileName, File, Cc)
+   *   Mail Merge/mail-list.json  (read by the Power Automate flow)
+   *   Mail Merge/mail-list.xlsx  (same rows, Excel table MailList — for checking)
    * people = [{ email, name, file (path inside "Mail Merge/"), vars }]
    * Subject/Body are filled in per person here, so one flow works for every event.
    */
@@ -168,15 +169,21 @@
     const m = mail();
     // people without an email can't be sent to — they're left out of the list
     let list = m.test ? people.slice(0, 3) : people.filter((p) => p.email);
-    const rows = list.map((p) => {
+    const records = list.map((p) => {
       const vars = Object.assign({ Name: p.name || "Participant" }, p.vars || {});
-      const subj = (m.test ? "[TEST] " : "") + fillVars(subject, vars);
-      const html = textToHtml(fillVars(body, vars));
-      const to = m.test ? m.testEmail : p.email;
-      const fileName = p.file ? p.file.split("/").pop() : "";
-      return [to, p.name || "", subj, html, fileName, p.file || "", m.test ? "" : m.cc];
+      return {
+        Email: m.test ? m.testEmail : p.email,
+        Name: p.name || "",
+        Subject: (m.test ? "[TEST] " : "") + fillVars(subject, vars),
+        Body: textToHtml(fillVars(body, vars)),
+        FileName: p.file ? p.file.split("/").pop() : "",
+        File: p.file || "",
+      };
     });
-    zip.file("Mail Merge/mail-list.xlsx", await buildMailXlsx(["Email", "Name", "Subject", "Body", "FileName", "File", "Cc"], rows));
+    const header = ["Email", "Name", "Subject", "Body", "FileName", "File"];
+    // mail-list.json is what the imported Power Automate flow reads; the .xlsx is for you to check
+    zip.file("Mail Merge/mail-list.json", JSON.stringify(records, null, 1));
+    zip.file("Mail Merge/mail-list.xlsx", await buildMailXlsx(header, records.map((r) => header.map((h) => r[h]))));
     zip.file("READ ME - how to send.txt",
       "Send these emails with Power Automate (one-time setup: see the 'Send emails' tab in the app).\r\n\r\n" +
       "1. Extract this ZIP.\r\n" +
@@ -184,7 +191,7 @@
       "3. Drag the new 'Mail Merge' folder into OneDrive (My files).\r\n" +
       "4. Open make.powerautomate.com > My flows > 'Mail Merge - Send' > Run.\r\n" +
       (m.test ? "\r\nTEST MODE: only 3 emails, all sent to " + m.testEmail + ".\r\n" : ""));
-    return { count: rows.length, test: m.test, noEmail: people.filter((p) => !p.email).length };
+    return { count: records.length, test: m.test, noEmail: people.filter((p) => !p.email).length };
   }
 
   window.MMS = { $, $$, store, toast, download, safeName, uniqueNamer, toCsv, parsePeople, EMAIL_RE, mail, writeMailKit, buildMailXlsx, showTab };
