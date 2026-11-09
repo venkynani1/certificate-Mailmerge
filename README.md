@@ -23,7 +23,7 @@ An internet connection is needed for the helper libraries (JSZip, jsPDF, SheetJS
 | Event | Event name (used in the ZIP name and email) |
 | Types | Winner / Runner-up / Participant… each with its own template and name position |
 | Template | Drop the PNG/JPG certificate (with sample text already on it is fine) |
-| Text boxes | Drag a box over each piece of text to replace — name, event title, date. The old text is wiped and the background rebuilt to match; colour and size are copied from the old text. Write the new text with `{Name}`, `{Event}`, `**bold**`, `^th^`. Long text shrinks to fit |
+| Edit text (like Canva) | The app reads all the text on the design. Click a text to select it, double-click to type over it right on the certificate (B = bold, x² = superscript). The name under “awarded to” is detected automatically; otherwise click the name and press 👤 Name. Edited text is wiped and the background rebuilt; colour, size and letter spacing are copied from the original. Untouched text stays pixel-perfect |
 | Names | Paste `Name, email` per line, or import Excel with **Name**, **Email**, **Category** columns. Category splits rows into types automatically |
 | Generate | PNG / PDF / Both → one ZIP |
 

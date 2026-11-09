@@ -92,7 +92,7 @@
 
   /** Erase layer boxes on ctx (which already holds the template). */
   function eraseAll(ctx, W, H, layers) {
-    const todo = layers.filter((l) => l.w > 0 && l.h > 0 && l.erase !== "none");
+    const todo = layers.filter((l) => l.w > 0 && l.h > 0 && l.erase !== "none" && l.edited !== false);
     if (!todo.length) return;
     const img = ctx.getImageData(0, 0, W, H);
     const src = new Uint8ClampedArray(img.data); // sample edges from the untouched template
@@ -314,7 +314,7 @@
 
   /** Draw one text layer. Returns the font size used (px). */
   function drawLayer(ctx, W, H, layer, vars) {
-    if (!(layer.w > 0 && layer.h > 0)) return 0;
+    if (!(layer.w > 0 && layer.h > 0) || layer.edited === false) return 0;
     const text = fillText(layer.text, vars, layer).trim();
     if (!text) return 0;
     const tokens = tokenize(text);

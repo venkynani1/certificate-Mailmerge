@@ -60,19 +60,23 @@
               <input id="tplInput" type="file" accept="image/png,image/jpeg" hidden />
               <span id="tplLabel">Drop your PNG/JPG certificate here or <u>browse</u></span>
             </label>
-            <p class="muted small">Then draw boxes over the text you want to replace (step 4).</p>
+            <p class="muted small">The app reads the text on it so you can click and edit, like in Canva.</p>
           </div>
 
           <div class="card">
-            <div class="card-head"><span class="step">4</span><h2>Text on the certificate</h2></div>
-            <p class="muted small">Drag a box over each piece of text you want to change — the name, the event title, the date. The old text is wiped (the background is filled in to match) and your text is written in its place.</p>
+            <div class="card-head"><span class="step">4</span><h2>Edit the text</h2></div>
+            <div id="ocrStatus" class="ocr-status">Upload a template — the app finds all the text on it.</div>
+            <p class="muted small">Like Canva: <b>click any text on the certificate</b> to select it, <b>double-click</b> to type over it. Text you don't touch stays exactly as designed.</p>
             <div id="layerList" class="layers"></div>
             <div class="row gap wrap">
+              <button id="makeName" class="btn ghost small">👤 Make this the name</button>
+              <button id="restoreLayer" class="btn ghost small">↺ Restore original</button>
               <button id="addLayer" class="btn ghost small">+ Add text box</button>
-              <button id="delLayer" class="btn ghost small danger">Delete box</button>
+              <button id="delLayer" class="btn ghost small danger">Delete</button>
             </div>
-            <div id="drawHint" class="draw-hint" hidden>✏️ Drag on the preview to draw the box over the old text</div>
-
+            <div id="drawHint" class="draw-hint" hidden></div>
+            <details id="moreStyle" class="more-style">
+              <summary>Font, size, colour &amp; spacing</summary>
             <div id="layerProps">
               <label>Text <span class="hint"><code>{Name}</code> <code>{Event}</code> <code>{Category}</code> · <code>**bold**</code> · <code>^th^</code> superscript · Enter = new line</span>
                 <textarea id="lText" rows="3"></textarea>
@@ -127,9 +131,10 @@
                 <span class="color-row"><input id="lEraseColor" type="color" /><button id="lPickErase" class="btn ghost small" title="Pick from the certificate">🎯</button></span>
               </label>
             </div>
+            </details>
             <label>Preview name <input id="fSample" type="text" value="Venkatesh Ragipati" /></label>
             <label class="check"><input id="showBoxes" type="checkbox" checked /> Show boxes on preview</label>
-            <p class="muted small">Text shrinks automatically if a long name or title doesn't fit the box. Drag a box to move it, drag its corner to resize, arrow keys to nudge.</p>
+            <p class="muted small">Long names shrink to fit. Drag a selected box to move it, its corner to resize, arrow keys to nudge.</p>
           </div>
 
           <div class="card">
@@ -165,7 +170,21 @@
             <span class="muted small" id="posInfo"></span>
           </div>
           <div class="preview" id="previewBox">
-            <canvas id="preview"></canvas>
+            <div class="stage" id="stage">
+              <canvas id="preview"></canvas>
+              <div id="inlineEdit" class="inline-edit" contenteditable="true" spellcheck="false" hidden></div>
+              <div id="floatBar" class="float-bar" hidden>
+                <button data-act="edit" title="Edit text">✏️ Edit</button>
+                <button data-act="name" title="Use each person's name here">👤 Name</button>
+                <button data-act="bold" class="only-edit" title="Bold (Ctrl+B)"><b>B</b></button>
+                <button data-act="sup" class="only-edit" title="Superscript, e.g. 13th">x²</button>
+                <button data-act="smaller" title="Smaller">A−</button>
+                <button data-act="bigger" title="Bigger">A+</button>
+                <label class="fb-color" title="Text colour"><input type="color" id="fbColor" /></label>
+                <button data-act="restore" class="only-edited" title="Back to the original text">↺</button>
+                <button data-act="done" class="only-edit" title="Done (Ctrl+Enter)">✓ Done</button>
+              </div>
+            </div>
             <div class="empty" id="previewEmpty">
               <div class="empty-icon">🏅</div>
               <p>Upload a certificate template to start</p>
@@ -297,6 +316,7 @@
   <script src="js/voucher-docx.js"></script>
   <script src="js/common.js"></script>
   <script src="js/cert-engine.js"></script>
+  <script src="js/text-detect.js"></script>
   <script src="js/certificates.js"></script>
   <script src="js/vouchers.js"></script>
 </body>
