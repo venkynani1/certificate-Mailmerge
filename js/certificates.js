@@ -91,7 +91,7 @@
     const has = !!(g && g.img);
     stage.classList.toggle("show", has);
     $("#previewEmpty").hidden = has;
-    $("#previewTitle").textContent = g ? `Preview — ${g.label}` : "Preview";
+    $("#previewTitle").textContent = "Preview";
     if (!has) { $("#posInfo").textContent = ""; placeUi(); return; }
     const W = g.img.naturalWidth, H = g.img.naturalHeight;
     if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
@@ -248,6 +248,7 @@
     editor.hidden = true;
     l.text = text;
     if (!wasEdited && (cancel || norm(text) === norm(l.orig))) restore(l, true);
+    updateEvent(active);
     save(); renderLayers(); syncProps(); render();
   }
   function restore(l, silent) {
@@ -303,6 +304,7 @@
 
   function renderChips() {
     const box = $("#groupChips");
+    if (!box) return;
     box.innerHTML = "";
     groups.forEach((g) => {
       const b = document.createElement("button");
@@ -313,7 +315,7 @@
       b.addEventListener("click", () => select(g));
       box.appendChild(b);
     });
-    $("#removeGroup").disabled = groups.length < 2;
+    if ($("#removeGroup")) $("#removeGroup").disabled = groups.length < 2;
   }
 
   function renderLayers() {
@@ -362,6 +364,27 @@
     $("#lLineVal").textContent = l.lineHeight.toFixed(2);
   }
 
+  // Event name = the text between quotes on the certificate, e.g. participating in “Mavericks AI Edge…”
+  let eventTouched = false;
+  function plain(t) { return String(t || "").replace(/\*\*|\^/g, ""); }
+  function quotedEvent(g) {
+    const texts = g.layers.map((l) => plain(l.edited ? l.text : l.orig));
+    for (const t of texts) {
+      const m = t.match(/["“”„«»'‘’]{1,2}\s*([^"“”„«»]{3,}?)\s*["“”„«»]/);
+      if (m) {
+        return m[1].replace(/\bAl\b/g, "AI").replace(/\s+:/g, " :").replace(/\s{2,}/g, " ").replace(/[.,;]+$/, "").trim();
+      }
+    }
+    return "";
+  }
+  function updateEvent(g) {
+    if (eventTouched) return;
+    const ev = quotedEvent(g);
+    if (!ev) return;
+    const input = $("#certEvent");
+    if (input.value !== ev) { input.value = ev; store.set("certEvent", ev); }
+  }
+
   function setStatus(text, kind) {
     const el = $("#ocrStatus");
     el.textContent = text;
@@ -370,8 +393,6 @@
 
   function syncGroup() {
     const g = active;
-    $("#tplFor").textContent = "— " + g.label;
-    $("#namesFor").textContent = "— " + g.label;
     $("#tplLabel").innerHTML = g.img ? `✔ ${escapeHtml(g.imgName)} <u>(change)</u>` : "Drop your PNG/JPG certificate here or <u>browse</u>";
     $("#tplDrop").classList.toggle("has", !!g.img);
     $("#namesBox").value = g.text;
@@ -388,10 +409,8 @@
   function updateStats() {
     const list = people(active);
     const withMail = list.filter((p) => p.email).length;
-    const total = groups.reduce((n, g) => n + people(g).length, 0);
     const dupes = list.length - new Set(list.map((p) => p.name.toLowerCase())).size;
-    let html = list.length ? `<span class="ok">${list.length} names</span> in ${escapeHtml(active.label)} · ${withMail} with email` : "No names yet";
-    if (groups.length > 1) html += ` · <b>${total}</b> across all types`;
+    let html = list.length ? `<span class="ok">${list.length} names</span> · ${withMail} with email` : "No names yet";
     if (dupes) html += ` · <span class="warn">${dupes} duplicate name(s) — files get (2), (3)…</span>`;
     $("#namesStats").innerHTML = html;
   }
@@ -459,6 +478,8 @@
       }
     }
     if (!blocks.length) setStatus("Couldn't read the text automatically. Use “+ Add text box” and drag over the text you want to change.", "");
+    eventTouched = false;
+    updateEvent(g);
     if (g === active) { syncGroup(); await ensureFonts(g.layers); render(); }
     save();
   }
@@ -612,13 +633,13 @@
         const wb = XLSX.read(new Uint8Array(reader.result), { type: "array" });
         const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: "", raw: false });
         const hIdx = rows.findIndex((r) => r.some((c) => /name/i.test(String(c))));
-        let nameCol = 0, mailCol = -1, catCol = -1, start = 0;
+        let nameCol = 0, mailCol = -1, start = 0;
         if (hIdx >= 0 && hIdx < 10) {
           const h = rows[hIdx].map((c) => String(c).trim().toLowerCase());
           nameCol = h.findIndex((c) => /(^|\s)(full\s*)?name/.test(c) && !/mail|team|event/.test(c));
           if (nameCol < 0) nameCol = h.findIndex((c) => /name/.test(c));
           mailCol = h.findIndex((c) => /mail/.test(c));
-          catCol = h.findIndex((c) => /category|type|award|position|result|prize|certificate/.test(c));
+          // one certificate design per run — category columns are ignored
           start = hIdx + 1;
         }
         const buckets = new Map();
@@ -628,21 +649,15 @@
           if (!name) return;
           let email = mailCol >= 0 ? String(r[mailCol] || "").trim() : "";
           if (!email) { const m = r.join(" ").match(EMAIL_RE); email = m ? m[0] : ""; }
-          const cat = catCol >= 0 ? String(r[catCol] || "").trim() : "";
-          let g = cat ? findGroup(cat) : active;
-          if (!g) g = newGroup(cat);
+          const g = active;
           if (!buckets.has(g)) buckets.set(g, []);
           buckets.get(g).push(email ? `${name}, ${email}` : name);
           count++;
         });
         if (!count) { toast("No names found. Make sure there's a 'Name' column.", true); return; }
         buckets.forEach((lines, g) => (g.text = lines.join("\n")));
-        if (catCol >= 0) {
-          for (let i = groups.length - 1; i >= 0; i--) if (!buckets.has(groups[i]) && !groups[i].img && !people(groups[i]).length && groups.length > 1) groups.splice(i, 1);
-        }
-        active = buckets.has(active) ? active : buckets.keys().next().value;
         save(); renderChips(); syncGroup(); render();
-        toast(`Imported ${count} names: ${Array.from(buckets.entries()).map(([g, l]) => `${l.length} ${g.label}`).join(", ")}`);
+        toast(`Imported ${count} names`);
       } catch (e) { console.error(e); toast("Couldn't read that file: " + e.message, true); }
     };
     reader.readAsArrayBuffer(file);
@@ -650,12 +665,12 @@
 
   function sampleSheet() {
     const ws = XLSX.utils.aoa_to_sheet([
-      ["Name", "Email", "Category"],
-      ["Venkatesh Ragipati", "venkatesh.r@company.com", "Winner"],
-      ["Priya Sharma", "priya.s@company.com", "Runner-up"],
-      ["Arjun Kumar", "arjun.k@company.com", "Participant"],
+      ["Name", "Email"],
+      ["Venkatesh Ragipati", "venkatesh.r@company.com"],
+      ["Priya Sharma", "priya.s@company.com"],
+      ["Arjun Kumar", "arjun.k@company.com"],
     ]);
-    ws["!cols"] = [{ wch: 26 }, { wch: 30 }, { wch: 14 }];
+    ws["!cols"] = [{ wch: 28 }, { wch: 32 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Names");
     XLSX.writeFile(wb, "certificate-names-sample.xlsx");
@@ -666,12 +681,12 @@
 
   async function generate() {
     if (editing) commitEdit();
-    const targets = ($("#allGroups").checked ? groups : [active]).filter((g) => people(g).length);
+    const targets = [active].filter((g) => people(g).length);
     if (!targets.length) { toast("Add some names first.", true); return; }
     const missing = targets.filter((g) => !g.img);
-    if (missing.length) { toast(`Upload a template for: ${missing.map((g) => g.label).join(", ")}`, true); select(missing[0]); return; }
+    if (missing.length) { toast("Upload the certificate template first.", true); return; }
     const noName = targets.filter((g) => !g.layers.some((l) => isName(l) && hasBox(l)));
-    if (noName.length) { toast(`Click the name on the ${noName.map((g) => g.label).join(", ")} certificate and press 👤 Name first.`, true); select(noName[0]); return; }
+    if (noName.length) { toast("Click the name on the certificate and press 👤 Name first.", true); return; }
 
     const btn = $("#genCerts"), prog = $("#certProg"), pbar = prog.firstElementChild, lbl = prog.lastElementChild;
     btn.disabled = true; prog.hidden = false;
@@ -714,7 +729,7 @@
             }
             if (f === attachFmt) attachPath = file;
           }
-          mailRows.push([display, p.email, g.label, attachPath.replace(/\//g, "\\")]);
+          mailRows.push([display, p.email, attachPath.replace(/\//g, "\\")]);
           done++;
           pbar.style.width = (done / total) * 100 + "%";
           lbl.textContent = `${done} / ${total}`;
@@ -724,7 +739,7 @@
       const m = mail();
       writeMailKit(zip, {
         subject: m.certSubject, body: m.certBody, constants: { Event: event || "the event" },
-        header: ["Name", "Email", "Category", "File"], rows: mailRows,
+        header: ["Name", "Email", "File"], rows: mailRows,
       });
       lbl.textContent = "Zipping…";
       await tick();
@@ -761,7 +776,7 @@
       prepare(l);
       set(l, e.target.value); labels();
       if (id === "lErase") $("#lEraseColorWrap").hidden = l.erase !== "color";
-      if (id === "lText") renderLayers();
+      if (id === "lText") { renderLayers(); updateEvent(active); }
       save(); await ensureFonts(active.layers); render();
     }));
     $("#lWrap").addEventListener("change", (e) => { const l = selLayer(); if (!l) return; prepare(l); l.wrap = e.target.checked; save(); render(); });
@@ -794,25 +809,6 @@
     $("#xlsInput").addEventListener("change", (e) => { if (e.target.files[0]) importSheet(e.target.files[0]); e.target.value = ""; });
     $("#sampleXls").addEventListener("click", sampleSheet);
 
-    $("#addGroup").addEventListener("click", () => {
-      const label = (prompt("Name of the certificate type (e.g. Winner, Runner-up, Participant):") || "").trim();
-      if (!label) return;
-      if (findGroup(label)) { toast("That type already exists."); select(findGroup(label)); return; }
-      const g = newGroup(label);
-      save(); select(g);
-    });
-    $("#renameGroup").addEventListener("click", () => {
-      const label = (prompt("Rename type:", active.label) || "").trim();
-      if (!label || label === active.label) return;
-      active.label = label; save(); renderChips(); syncGroup(); render();
-    });
-    $("#removeGroup").addEventListener("click", () => {
-      if (groups.length < 2) return;
-      if (people(active).length && !confirm(`Remove "${active.label}" and its ${people(active).length} names?`)) return;
-      groups.splice(groups.indexOf(active), 1);
-      save(); select(groups[0]);
-    });
-
     document.querySelectorAll("#fmtSeg button").forEach((b) => {
       b.classList.toggle("active", b.dataset.fmt === format);
       b.addEventListener("click", () => {
@@ -824,11 +820,11 @@
 
     const ev = $("#certEvent");
     ev.value = store.get("certEvent", "");
-    ev.addEventListener("input", () => store.set("certEvent", ev.value));
+    ev.addEventListener("input", () => { eventTouched = true; store.set("certEvent", ev.value); });
   }
 
   document.addEventListener("DOMContentLoaded", () => {
-    store.get("certGroups", ["Participant"]).forEach((l) => newGroup(l));
+    newGroup("Certificate");
     active = groups[0];
     bind();
     renderChips(); syncGroup(); render();

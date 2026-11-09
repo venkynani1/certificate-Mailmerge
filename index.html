@@ -37,34 +37,19 @@
       <div class="layout">
         <div class="controls">
           <div class="card">
-            <div class="card-head"><span class="step">1</span><h2>Event</h2></div>
-            <label>Event name <span class="hint">(used in file names &amp; email)</span>
-              <input id="certEvent" type="text" placeholder="e.g. Mavericks Trust Fall" />
-            </label>
-          </div>
-
-          <div class="card">
-            <div class="card-head"><span class="step">2</span><h2>Certificate types</h2></div>
-            <p class="muted small">One template per type (Winner, Runner-up, Participant…). Each type keeps its own name position.</p>
-            <div id="groupChips" class="chips"></div>
-            <div class="row gap">
-              <button id="addGroup" class="btn ghost small">+ Add type</button>
-              <button id="renameGroup" class="btn ghost small">Rename</button>
-              <button id="removeGroup" class="btn ghost small danger">Remove</button>
-            </div>
-          </div>
-
-          <div class="card">
-            <div class="card-head"><span class="step">3</span><h2>Template <span id="tplFor" class="muted"></span></h2></div>
+            <div class="card-head"><span class="step">1</span><h2>Certificate template</h2></div>
             <label class="drop" id="tplDrop">
               <input id="tplInput" type="file" accept="image/png,image/jpeg" hidden />
               <span id="tplLabel">Drop your PNG/JPG certificate here or <u>browse</u></span>
+            </label>
+            <label>Event name <span class="hint">(read from the “quoted” title on the certificate)</span>
+              <input id="certEvent" type="text" placeholder="Filled in automatically from the template" />
             </label>
             <p class="muted small">The app reads the text on it so you can click and edit, like in Canva.</p>
           </div>
 
           <div class="card">
-            <div class="card-head"><span class="step">4</span><h2>Edit the text</h2></div>
+            <div class="card-head"><span class="step">2</span><h2>Edit the text</h2></div>
             <div id="ocrStatus" class="ocr-status">Upload a template — the app finds all the text on it.</div>
             <p class="muted small">Like Canva: <b>click any text on the certificate</b> to select it, <b>double-click</b> to type over it. Text you don't touch stays exactly as designed.</p>
             <div id="layerList" class="layers"></div>
@@ -78,7 +63,7 @@
             <details id="moreStyle" class="more-style">
               <summary>Font, size, colour &amp; spacing</summary>
             <div id="layerProps">
-              <label>Text <span class="hint"><code>{Name}</code> <code>{Event}</code> <code>{Category}</code> · <code>**bold**</code> · <code>^th^</code> superscript · Enter = new line</span>
+              <label>Text <span class="hint"><code>{Name}</code> <code>{Event}</code> · <code>**bold**</code> · <code>^th^</code> superscript · Enter = new line</span>
                 <textarea id="lText" rows="3"></textarea>
               </label>
               <div class="grid2">
@@ -138,26 +123,25 @@
           </div>
 
           <div class="card">
-            <div class="card-head"><span class="step">5</span><h2>Names <span id="namesFor" class="muted"></span></h2></div>
+            <div class="card-head"><span class="step">3</span><h2>Names</h2></div>
             <div class="row gap wrap">
               <label class="btn ghost small file-btn">Import Excel / CSV
                 <input id="xlsInput" type="file" accept=".xlsx,.xls,.csv" hidden />
               </label>
               <button id="sampleXls" class="btn link small">Download sample sheet</button>
             </div>
-            <p class="muted small">Excel columns: <b>Name</b>, <b>Email</b> (optional), <b>Category</b> (optional — splits rows into the types above automatically).</p>
+            <p class="muted small">Excel columns: <b>Name</b> and <b>Email</b> (email is only needed for sending).</p>
             <textarea id="namesBox" rows="8" placeholder="Or paste one per line:&#10;Venkatesh Ragipati, venkatesh@company.com&#10;Priya Sharma&#10;Arjun K, arjun@company.com"></textarea>
             <div id="namesStats" class="stats"></div>
           </div>
 
           <div class="card sticky-gen">
-            <div class="card-head"><span class="step">6</span><h2>Generate</h2></div>
+            <div class="card-head"><span class="step">4</span><h2>Generate</h2></div>
             <div class="seg" id="fmtSeg">
               <button data-fmt="png">PNG</button>
               <button data-fmt="pdf">PDF</button>
               <button data-fmt="both">Both</button>
             </div>
-            <label class="check"><input id="allGroups" type="checkbox" checked /> All types in one ZIP</label>
             <button id="genCerts" class="btn primary block">Generate &amp; download ZIP</button>
             <div class="progress" id="certProg" hidden><div></div><span></span></div>
             <p class="muted small">The ZIP also contains <code>mail-list.csv</code> + email text, ready for the Outlook macro (see <a href="#" data-goto="send">Send via Outlook</a>).</p>
@@ -264,7 +248,7 @@
       <div class="send-grid">
         <div class="card">
           <div class="card-head"><h2>Email text</h2></div>
-          <p class="muted small">Used in the ZIPs you download. Placeholders: <code>{Name}</code>, <code>{Event}</code>, <code>{Category}</code>; for vouchers also <code>{RefID}</code>, <code>{Pin}</code>, <code>{Expiry}</code>, <code>{Amount}</code>, <code>{Brand}</code>.</p>
+          <p class="muted small">Used in the ZIPs you download. Placeholders: <code>{Name}</code>, <code>{Event}</code>; for vouchers also <code>{RefID}</code>, <code>{Pin}</code>, <code>{Expiry}</code>, <code>{Amount}</code>, <code>{Brand}</code>.</p>
           <h3>Certificates</h3>
           <label>Subject <input id="mCertSubject" type="text" /></label>
           <label>Body <textarea id="mCertBody" rows="8"></textarea></label>
