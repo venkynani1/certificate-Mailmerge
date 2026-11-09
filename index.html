@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Certificate &amp; Voucher Mail Merge</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%233b2fd9%27/%3E%3Cpath d=%27M9 17l5 5 9-11%27 stroke=%27white%27 stroke-width=%273.5%27 fill=%27none%27 stroke-linecap=%27round%27/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Great+Vibes&family=Alex+Brush&family=Dancing+Script:wght@600;700&family=Playfair+Display:wght@500;700&family=Cinzel:wght@500;700&family=Lora:wght@500;700&family=Montserrat:wght@500;700&family=Poppins:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo-dot"></span>
+      <div>
+        <h1>Mail Merge Studio</h1>
+        <p>Certificates &amp; vouchers for events — generate in one click, send in bulk from Outlook</p>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="certs" role="tab">Certificates</button>
+      <button class="tab" data-tab="vouchers" role="tab">Vouchers</button>
+      <button class="tab" data-tab="send" role="tab">Send via Outlook</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ===================== CERTIFICATES ===================== -->
+    <section id="tab-certs" class="panel active">
+      <div class="layout">
+        <div class="controls">
+          <div class="card">
+            <div class="card-head"><span class="step">1</span><h2>Event</h2></div>
+            <label>Event name <span class="hint">(used in file names &amp; email)</span>
+              <input id="certEvent" type="text" placeholder="e.g. Mavericks Trust Fall" />
+            </label>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><span class="step">2</span><h2>Certificate types</h2></div>
+            <p class="muted small">One template per type (Winner, Runner-up, Participant…). Each type keeps its own name position.</p>
+            <div id="groupChips" class="chips"></div>
+            <div class="row gap">
+              <button id="addGroup" class="btn ghost small">+ Add type</button>
+              <button id="renameGroup" class="btn ghost small">Rename</button>
+              <button id="removeGroup" class="btn ghost small danger">Remove</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><span class="step">3</span><h2>Template <span id="tplFor" class="muted"></span></h2></div>
+            <label class="drop" id="tplDrop">
+              <input id="tplInput" type="file" accept="image/png,image/jpeg" hidden />
+              <span id="tplLabel">Drop your PNG/JPG certificate here or <u>browse</u></span>
+            </label>
+            <p class="muted small">Then click on the preview where the name should go. Drag to fine-tune.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><span class="step">4</span><h2>Name style</h2></div>
+            <div class="grid2">
+              <label>Font
+                <select id="fFont">
+                  <option>Great Vibes</option><option>Alex Brush</option><option>Dancing Script</option>
+                  <option>Playfair Display</option><option>Cinzel</option><option>Lora</option>
+                  <option>Montserrat</option><option>Poppins</option><option>Inter</option>
+                  <option>Times New Roman</option><option>Georgia</option><option>Arial</option>
+                </select>
+              </label>
+              <label>Colour <input id="fColor" type="color" value="#1f2a44" /></label>
+              <label>Size <span id="fSizeVal" class="hint"></span>
+                <input id="fSize" type="range" min="10" max="400" value="90" />
+              </label>
+              <label>Max width <span id="fMaxVal" class="hint"></span>
+                <input id="fMax" type="range" min="10" max="100" value="60" />
+              </label>
+              <label>Case
+                <select id="fCase">
+                  <option value="asis">As typed</option>
+                  <option value="title">Title Case</option>
+                  <option value="upper">UPPERCASE</option>
+                </select>
+              </label>
+              <label>Align
+                <select id="fAlign">
+                  <option value="center">Centre</option>
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                </select>
+              </label>
+            </div>
+            <label class="check"><input id="fBold" type="checkbox" /> Bold</label>
+            <label>Preview name <input id="fSample" type="text" value="Venkatesh Ragipati" /></label>
+            <p class="muted small">Long names shrink automatically to stay inside the max width.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><span class="step">5</span><h2>Names <span id="namesFor" class="muted"></span></h2></div>
+            <div class="row gap wrap">
+              <label class="btn ghost small file-btn">Import Excel / CSV
+                <input id="xlsInput" type="file" accept=".xlsx,.xls,.csv" hidden />
+              </label>
+              <button id="sampleXls" class="btn link small">Download sample sheet</button>
+            </div>
+            <p class="muted small">Excel columns: <b>Name</b>, <b>Email</b> (optional), <b>Category</b> (optional — splits rows into the types above automatically).</p>
+            <textarea id="namesBox" rows="8" placeholder="Or paste one per line:&#10;Venkatesh Ragipati, venkatesh@company.com&#10;Priya Sharma&#10;Arjun K, arjun@company.com"></textarea>
+            <div id="namesStats" class="stats"></div>
+          </div>
+
+          <div class="card sticky-gen">
+            <div class="card-head"><span class="step">6</span><h2>Generate</h2></div>
+            <div class="seg" id="fmtSeg">
+              <button data-fmt="png">PNG</button>
+              <button data-fmt="pdf">PDF</button>
+              <button data-fmt="both">Both</button>
+            </div>
+            <label class="check"><input id="allGroups" type="checkbox" checked /> All types in one ZIP</label>
+            <button id="genCerts" class="btn primary block">Generate &amp; download ZIP</button>
+            <div class="progress" id="certProg" hidden><div></div><span></span></div>
+            <p class="muted small">The ZIP also contains <code>mail-list.csv</code> + email text, ready for the Outlook macro (see <a href="#" data-goto="send">Send via Outlook</a>).</p>
+          </div>
+        </div>
+
+        <div class="preview-wrap">
+          <div class="preview-head">
+            <span id="previewTitle">Preview</span>
+            <span class="muted small" id="posInfo"></span>
+          </div>
+          <div class="preview" id="previewBox">
+            <canvas id="preview"></canvas>
+            <div class="empty" id="previewEmpty">
+              <div class="empty-icon">🏅</div>
+              <p>Upload a certificate template to start</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== VOUCHERS ===================== -->
+    <section id="tab-vouchers" class="panel">
+      <div class="layout">
+        <div class="controls">
+          <div class="card">
+            <div class="card-head"><span class="step">1</span><h2>Event &amp; voucher</h2></div>
+            <label>Event name <input id="vEvent" type="text" placeholder="e.g. Hexa Link: Connect the clues and Decode Session" /></label>
+            <div class="grid2">
+              <label>Voucher brand <input id="vBrand" type="text" value="Amazon" /></label>
+              <label>S.No in table
+                <select id="vSerial">
+                  <option value="one">Always 1</option>
+                  <option value="running">Running (1, 2, 3…)</option>
+                </select>
+              </label>
+            </div>
+            <label class="check"><input id="vSimplify" type="checkbox" /> Show expiry as date only (13-Oct-2027)</label>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><span class="step">2</span><h2>Letter text</h2></div>
+            <p class="muted small"><code>{event}</code> = event name (bold), <code>{brand}</code> = voucher brand. Wrap words in <code>**double stars**</code> for bold. Blank line = new paragraph.</p>
+            <label>Greeting <input id="vGreeting" type="text" /></label>
+            <label>Before the table <textarea id="vBody" rows="8"></textarea></label>
+            <label>After the table <span class="hint">(optional)</span> <textarea id="vClosing" rows="3"></textarea></label>
+            <div class="grid2">
+              <label>Signed by <input id="vSignName" type="text" /></label>
+              <label>Title <input id="vSignTitle" type="text" /></label>
+            </div>
+            <p class="muted small">Hexaware logo and Krishna's signature come from the repo template.</p>
+            <button id="vReset" class="btn link small">Reset to standard letter</button>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><span class="step">3</span><h2>Paste vouchers</h2></div>
+            <p class="muted small">Paste straight from the voucher portal, Excel or the PDF — Reference ID, Pin, Expiry Date, Amount. Headers and blank lines are ignored.</p>
+            <textarea id="vPaste" rows="9" placeholder="Reference ID	Pin	Expiry Date	Amount&#10;H6V6-UX3PPG-DGEY	6014879723006652	2027-10-13 00:00:00 UTC	1000"></textarea>
+            <div id="vStats" class="stats"></div>
+          </div>
+
+          <div class="card sticky-gen">
+            <div class="card-head"><span class="step">4</span><h2>Generate</h2></div>
+            <button id="vGen" class="btn primary block">Download Word document</button>
+            <p class="muted small">One page per voucher, no names — ready to print or split.</p>
+          </div>
+
+          <div class="card">
+            <div class="card-head"><span class="step">5</span><h2>Email the vouchers <span class="hint">(optional)</span></h2></div>
+            <p class="muted small">Paste recipients in the same order as the vouchers — row 1 gets voucher 1. <code>Name, email</code> or just the email per line.</p>
+            <textarea id="vRecipients" rows="6" placeholder="Venkatesh Ragipati, venkatesh@company.com&#10;priya@company.com"></textarea>
+            <div id="vRecStats" class="stats"></div>
+            <label class="check"><input id="vAttach" type="checkbox" checked /> Also attach each person's voucher page as a Word file</label>
+            <button id="vKit" class="btn ghost block">Download Outlook mail kit (ZIP)</button>
+          </div>
+        </div>
+
+        <div class="preview-wrap">
+          <div class="preview-head"><span>Page preview</span><span class="muted small" id="vPrevInfo"></span></div>
+          <div class="paper-scroll">
+            <div class="paper" id="vPaper"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== SEND ===================== -->
+    <section id="tab-send" class="panel">
+      <div class="send-grid">
+        <div class="card">
+          <div class="card-head"><h2>Email text</h2></div>
+          <p class="muted small">Used in the ZIPs you download. Placeholders: <code>{Name}</code>, <code>{Event}</code>, <code>{Category}</code>; for vouchers also <code>{RefID}</code>, <code>{Pin}</code>, <code>{Expiry}</code>, <code>{Amount}</code>, <code>{Brand}</code>.</p>
+          <h3>Certificates</h3>
+          <label>Subject <input id="mCertSubject" type="text" /></label>
+          <label>Body <textarea id="mCertBody" rows="8"></textarea></label>
+          <h3>Vouchers</h3>
+          <label>Subject <input id="mVSubject" type="text" /></label>
+          <label>Body <textarea id="mVBody" rows="10"></textarea></label>
+          <label>Send from a shared mailbox <span class="hint">(optional — leave blank to use your own)</span>
+            <input id="mFrom" type="email" placeholder="events@company.com" />
+          </label>
+          <label>CC on every mail <span class="hint">(optional)</span><input id="mCc" type="text" placeholder="manager@company.com" /></label>
+          <button id="mReset" class="btn link small">Reset email text</button>
+        </div>
+
+        <div class="card guide">
+          <div class="card-head"><h2>Send all at once from Outlook</h2></div>
+          <p class="muted">Works in <b>classic Outlook for Windows</b> (the desktop app). One-time setup takes about two minutes.</p>
+          <h3>One-time setup</h3>
+          <ol>
+            <li><a class="btn ghost small" href="outlook/BulkMailer.bas" download>Download BulkMailer.bas</a></li>
+            <li>In Outlook press <kbd>Alt</kbd>+<kbd>F11</kbd> → <b>File ▸ Import File…</b> → pick <code>BulkMailer.bas</code>.</li>
+            <li>Close the editor. If macros are blocked: <b>File ▸ Options ▸ Trust Center ▸ Trust Center Settings ▸ Macro Settings</b> → <i>Notifications for all macros</i>, then restart Outlook.</li>
+          </ol>
+          <h3>Every event</h3>
+          <ol>
+            <li>Generate certificates (or the voucher mail kit) here — the ZIP has the files plus <code>mail-list.csv</code>.</li>
+            <li><b>Extract</b> the ZIP to a folder (right-click ▸ Extract All).</li>
+            <li>In Outlook press <kbd>Alt</kbd>+<kbd>F8</kbd> → run <b>SendBulkMail</b> → pick that folder.</li>
+            <li>Choose <b>Drafts</b> first to check a few, then run again with <b>Send now</b> — or send straight away.</li>
+          </ol>
+          <p class="muted small">Each person gets their own email with their own attachment. A <code>send-log.csv</code> is written to the folder so you can see who was sent what. The macro pauses briefly between emails so Exchange doesn't throttle you.</p>
+          <details>
+            <summary>No macros allowed / using new Outlook?</summary>
+            <ul>
+              <li><b>Vouchers:</b> Word mail merge works without macros — open the Word doc ▸ <i>Mailings ▸ Start Mail Merge ▸ E-mail Messages</i>, select <code>mail-list.csv</code> as recipients, insert fields, <i>Finish &amp; Merge ▸ Send Email Messages</i>. Voucher details go in the email body.</li>
+              <li><b>Certificates (attachments):</b> use Power Automate — upload the folder to OneDrive, put <code>mail-list.csv</code> in an Excel table, and use “Apply to each” → “Get file content” → “Send an email (V2)” with the attachment. See <code>docs/OUTLOOK-GUIDE.md</code> in the repo.</li>
+            </ul>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="js/voucher-template-data.js"></script>
+  <script src="js/voucher-docx.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/certificates.js"></script>
+  <script src="js/vouchers.js"></script>
+</body>
+</html>
