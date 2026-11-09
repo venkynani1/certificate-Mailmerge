@@ -22,8 +22,8 @@ An internet connection is needed for the helper libraries (JSZip, jsPDF, SheetJS
 |---|---|
 | Event | Event name (used in the ZIP name and email) |
 | Types | Winner / Runner-up / Participant… each with its own template and name position |
-| Template | Drop the PNG/JPG, then click on the preview where the name goes — drag or use arrow keys to nudge |
-| Style | Font, size, colour, case, max width (long names shrink automatically) |
+| Template | Drop the PNG/JPG certificate (with sample text already on it is fine) |
+| Text boxes | Drag a box over each piece of text to replace — name, event title, date. The old text is wiped and the background rebuilt to match; colour and size are copied from the old text. Write the new text with `{Name}`, `{Event}`, `**bold**`, `^th^`. Long text shrinks to fit |
 | Names | Paste `Name, email` per line, or import Excel with **Name**, **Email**, **Category** columns. Category splits rows into types automatically |
 | Generate | PNG / PDF / Both → one ZIP |
 

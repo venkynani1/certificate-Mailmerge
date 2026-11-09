@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Great+Vibes&family=Alex+Brush&family=Dancing+Script:wght@600;700&family=Playfair+Display:wght@500;700&family=Cinzel:wght@500;700&family=Lora:wght@500;700&family=Montserrat:wght@500;700&family=Poppins:wght@500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Open+Sans:wght@400;600;700&family=Great+Vibes&family=Alex+Brush&family=Dancing+Script:wght@600;700&family=Playfair+Display:wght@500;700&family=Cinzel:wght@500;700&family=Lora:wght@500;700&family=Montserrat:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
@@ -60,45 +60,76 @@
               <input id="tplInput" type="file" accept="image/png,image/jpeg" hidden />
               <span id="tplLabel">Drop your PNG/JPG certificate here or <u>browse</u></span>
             </label>
-            <p class="muted small">Then click on the preview where the name should go. Drag to fine-tune.</p>
+            <p class="muted small">Then draw boxes over the text you want to replace (step 4).</p>
           </div>
 
           <div class="card">
-            <div class="card-head"><span class="step">4</span><h2>Name style</h2></div>
-            <div class="grid2">
-              <label>Font
-                <select id="fFont">
-                  <option>Great Vibes</option><option>Alex Brush</option><option>Dancing Script</option>
-                  <option>Playfair Display</option><option>Cinzel</option><option>Lora</option>
-                  <option>Montserrat</option><option>Poppins</option><option>Inter</option>
-                  <option>Times New Roman</option><option>Georgia</option><option>Arial</option>
+            <div class="card-head"><span class="step">4</span><h2>Text on the certificate</h2></div>
+            <p class="muted small">Drag a box over each piece of text you want to change — the name, the event title, the date. The old text is wiped (the background is filled in to match) and your text is written in its place.</p>
+            <div id="layerList" class="layers"></div>
+            <div class="row gap wrap">
+              <button id="addLayer" class="btn ghost small">+ Add text box</button>
+              <button id="delLayer" class="btn ghost small danger">Delete box</button>
+            </div>
+            <div id="drawHint" class="draw-hint" hidden>✏️ Drag on the preview to draw the box over the old text</div>
+
+            <div id="layerProps">
+              <label>Text <span class="hint"><code>{Name}</code> <code>{Event}</code> <code>{Category}</code> · <code>**bold**</code> · <code>^th^</code> superscript · Enter = new line</span>
+                <textarea id="lText" rows="3"></textarea>
+              </label>
+              <div class="grid2">
+                <label>Font
+                  <select id="lFont">
+                    <option>Montserrat</option><option>Poppins</option><option>Inter</option><option>Open Sans</option>
+                    <option>Great Vibes</option><option>Alex Brush</option><option>Dancing Script</option>
+                    <option>Playfair Display</option><option>Cinzel</option><option>Lora</option>
+                    <option>Times New Roman</option><option>Georgia</option><option>Arial</option>
+                  </select>
+                </label>
+                <label>Weight
+                  <select id="lWeight">
+                    <option value="400">Regular</option><option value="500">Medium</option>
+                    <option value="600">Semi-bold</option><option value="700">Bold</option>
+                  </select>
+                </label>
+                <label>Size <span id="lSizeVal" class="hint"></span>
+                  <input id="lSize" type="range" min="5" max="250" />
+                </label>
+                <label>Letter spacing <span id="lSpaceVal" class="hint"></span>
+                  <input id="lSpace" type="range" min="-5" max="60" />
+                </label>
+                <label>Colour
+                  <span class="color-row"><input id="lColor" type="color" /><button id="lPick" class="btn ghost small" title="Pick a colour from the certificate">🎯</button></span>
+                </label>
+                <label>Align
+                  <select id="lAlign">
+                    <option value="center">Centre</option><option value="left">Left</option><option value="right">Right</option>
+                  </select>
+                </label>
+                <label>Name case
+                  <select id="lCase">
+                    <option value="asis">As typed</option><option value="title">Title Case</option><option value="upper">UPPERCASE</option>
+                  </select>
+                </label>
+                <label>Line height <span id="lLineVal" class="hint"></span>
+                  <input id="lLine" type="range" min="80" max="220" />
+                </label>
+              </div>
+              <label class="check"><input id="lWrap" type="checkbox" /> Wrap long text onto more lines</label>
+              <label>Old text
+                <select id="lErase">
+                  <option value="auto">Wipe it — match the background (best for gradients)</option>
+                  <option value="color">Wipe it — fill with one colour</option>
+                  <option value="none">Keep it (template has an empty space here)</option>
                 </select>
               </label>
-              <label>Colour <input id="fColor" type="color" value="#1f2a44" /></label>
-              <label>Size <span id="fSizeVal" class="hint"></span>
-                <input id="fSize" type="range" min="10" max="400" value="90" />
-              </label>
-              <label>Max width <span id="fMaxVal" class="hint"></span>
-                <input id="fMax" type="range" min="10" max="100" value="60" />
-              </label>
-              <label>Case
-                <select id="fCase">
-                  <option value="asis">As typed</option>
-                  <option value="title">Title Case</option>
-                  <option value="upper">UPPERCASE</option>
-                </select>
-              </label>
-              <label>Align
-                <select id="fAlign">
-                  <option value="center">Centre</option>
-                  <option value="left">Left</option>
-                  <option value="right">Right</option>
-                </select>
+              <label id="lEraseColorWrap" hidden>Fill colour
+                <span class="color-row"><input id="lEraseColor" type="color" /><button id="lPickErase" class="btn ghost small" title="Pick from the certificate">🎯</button></span>
               </label>
             </div>
-            <label class="check"><input id="fBold" type="checkbox" /> Bold</label>
             <label>Preview name <input id="fSample" type="text" value="Venkatesh Ragipati" /></label>
-            <p class="muted small">Long names shrink automatically to stay inside the max width.</p>
+            <label class="check"><input id="showBoxes" type="checkbox" checked /> Show boxes on preview</label>
+            <p class="muted small">Text shrinks automatically if a long name or title doesn't fit the box. Drag a box to move it, drag its corner to resize, arrow keys to nudge.</p>
           </div>
 
           <div class="card">
@@ -265,6 +296,7 @@
   <script src="js/voucher-template-data.js"></script>
   <script src="js/voucher-docx.js"></script>
   <script src="js/common.js"></script>
+  <script src="js/cert-engine.js"></script>
   <script src="js/certificates.js"></script>
   <script src="js/vouchers.js"></script>
 </body>
