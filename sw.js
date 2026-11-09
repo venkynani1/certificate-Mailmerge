@@ -1,9 +1,9 @@
 /* Offline support: app files cached on install, libraries/fonts cached on first use. */
-const CACHE = "mms-v3";
+const CACHE = "mms-v4";
 const SHELL = [
   "./", "./index.html", "./css/styles.css", "./js/common.js", "./js/cert-engine.js", "./js/text-detect.js", "./js/certificates.js",
   "./js/vouchers.js", "./js/voucher-docx.js", "./js/voucher-template-data.js",
-  "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./outlook/BulkMailer.bas",
+  "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png",
 ];
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

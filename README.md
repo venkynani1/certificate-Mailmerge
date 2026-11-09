@@ -4,7 +4,7 @@ A browser app that removes the copy-paste work after every event:
 
 1. **Certificates** — upload the PNG/JPG you designed, paste names or import Excel, click where the name goes, and download every certificate as `Name.png`, `Name.pdf` or both, in one ZIP.
 2. **Vouchers** — paste the voucher codes (Reference ID, Pin, Expiry Date, Amount) and get one Word document with **one page per voucher**, using the Hexaware letter template with the logo and Krishna's signature.
-3. **Bulk email from Outlook** — every ZIP includes `mail-list.csv` + the email text; the `outlook/BulkMailer.bas` macro sends one personalised email per person with their own attachment.
+3. **Bulk email with Power Automate** — every ZIP has a `Mail Merge` folder (files + `mail-list.xlsx`); one Power Automate flow sends each person their own email and attachment. Works with new Outlook, no macros.
 
 Everything runs in your browser — names, emails and voucher codes never leave your machine.
 
@@ -29,15 +29,12 @@ An internet connection is needed for the helper libraries (JSZip, jsPDF, SheetJS
 
 Position and style are remembered per type, so next event's "Winner" starts where you left it.
 
-ZIP layout (Both, several types):
+ZIP layout:
 
 ```
-Winner/PNG/Priya Sharma.png
-Winner/PDF/Priya Sharma.pdf
-Participant/…
-mail-list.csv        Name, Email, Category, File
-email-subject.txt
-email-body.html
+Mail Merge/Priya Sharma.pdf      (and .png when you pick Both)
+Mail Merge/mail-list.xlsx        table MailList, ready for Power Automate
+READ ME - how to send.txt
 ```
 
 ## Vouchers
@@ -45,17 +42,18 @@ email-body.html
 - Paste straight from the voucher portal/Excel/PDF — headers, tabs and blank lines are ignored. Each voucher is detected by its Reference ID (e.g. `H6V6-UX3PPG-DGEY`) followed by Pin, Expiry Date, Amount. See `samples/vouchers-paste-example.txt`.
 - Edit the letter per event: `{event}` (bold), `{brand}`, `**bold text**`.
 - **Download Word document** → `<Event> - Vouchers.docx`, one page per voucher, no names.
-- **Outlook mail kit** (optional) → paste recipients in voucher order; you get `mail-list.csv` (Name, Email, RefID, Pin, Expiry, Amount, File) and, optionally, each person's own voucher page as a Word attachment.
+- **Outlook mail kit** (optional) → paste recipients in voucher order; you get `a `Mail Merge` folder with each person's voucher page (Word) and `mail-list.xlsx` with their codes written into the email.
 
 The logo, signature and styles come from `assets/voucher-template.docx` (embedded in `js/voucher-template-data.js`). To change the logo or signature, replace that .docx and run `python3 tools/embed_template.py`.
 
-## Sending from Outlook
+## Sending emails (Power Automate)
 
-See [`docs/OUTLOOK-GUIDE.md`](docs/OUTLOOK-GUIDE.md). Short version (classic Outlook for Windows):
+See [`docs/POWER-AUTOMATE-GUIDE.md`](docs/POWER-AUTOMATE-GUIDE.md) or the **Send emails** tab in the app.
 
-1. One time: Outlook → `Alt+F11` → File ▸ Import File → `outlook/BulkMailer.bas`.
-2. Extract the ZIP → Outlook → `Alt+F8` → **SendBulkMail** → pick the folder.
-3. **No** = save as Drafts to review, **Yes** = send now. A `send-log.csv` is written to the folder.
+1. One time: build the `Mail Merge - Send` flow (List rows present in a table → Get file content using path → Send an email (V2) → Delay 2 s).
+2. Every event: generate → extract → drag the `Mail Merge` folder into OneDrive (Replace) → Run the flow.
+
+`mail-list.xlsx` has an Excel table **MailList** with columns Email, Name, Subject, Body, FileName, File, Cc. Subject and Body are already filled in per person, so the same flow works for certificates and vouchers. Test mode (3 emails, all to you) is in the Send emails tab.
 
 ## Files
 
@@ -68,7 +66,6 @@ js/vouchers.js             voucher UI
 js/voucher-docx.js         Word builder + voucher paste parser
 js/voucher-template-data.js  embedded Word template (logo + signature)
 assets/voucher-template.docx
-outlook/BulkMailer.bas     Outlook macro
-docs/OUTLOOK-GUIDE.md
+docs/POWER-AUTOMATE-GUIDE.md
 samples/                   original template, sample voucher PDF and paste example
 ```

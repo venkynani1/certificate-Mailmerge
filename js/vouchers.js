@@ -1,4 +1,4 @@
-/* Vouchers: editable letter + pasted voucher codes -> Word doc (one page per voucher) + Outlook mail kit. */
+/* Vouchers: editable letter + pasted voucher codes -> Word doc (one page per voucher) + Power Automate mail kit. */
 (function () {
   "use strict";
   const { $, store, toast, download, safeName, uniqueNamer, parsePeople, mail, writeMailKit } = window.MMS;
@@ -147,29 +147,24 @@
     const btn = $("#vKit"); btn.disabled = true;
     try {
       const zip = new JSZip();
-      const attach = $("#vAttach").checked;
       const namer = uniqueNamer();
-      const rows = [];
+      const people = [];
       for (let i = 0; i < n; i++) {
         const v = list[i], p = r[i];
-        let file = "";
-        if (attach) {
-          file = "Vouchers\\" + namer(safeName(p.name || p.email.split("@")[0])) + ".docx";
-          const one = await V.buildVoucherDocx(JSZip, templateBytes, d, [v], "blob");
-          zip.file(file.replace(/\\/g, "/"), one);
-        }
-        rows.push([p.name || "Candidate", p.email, v.ref, v.pin, v.expiry, v.amount, file]);
+        // each person's own voucher page goes with their email as a Word attachment
+        const file = namer(safeName(p.name || p.email.split("@")[0])) + ".docx";
+        zip.file("Mail Merge/" + file, await V.buildVoucherDocx(JSZip, templateBytes, d, [v], "blob"));
+        people.push({
+          name: p.name || "Candidate", email: p.email, file,
+          vars: { Event: d.eventName, Brand: d.brand, RefID: v.ref, Pin: v.pin, Expiry: v.expiry, Amount: v.amount },
+        });
       }
-      zip.file(`${safeName(d.eventName)} - Vouchers.docx`, await V.buildVoucherDocx(JSZip, templateBytes, d, list, "blob"));
+      zip.file(`${safeName(d.eventName)} - Vouchers (all pages).docx`, await V.buildVoucherDocx(JSZip, templateBytes, d, list, "blob"));
       const m = mail();
-      writeMailKit(zip, {
-        subject: m.vSubject, body: m.vBody,
-        constants: { Event: d.eventName, Brand: d.brand },
-        header: ["Name", "Email", "RefID", "Pin", "Expiry", "Amount", "File"], rows,
-      });
+      const kit = await writeMailKit(zip, { subject: m.vSubject, body: m.vBody, people });
       const blob = await zip.generateAsync({ type: "blob" });
       download(blob, `${safeName(d.eventName)} - Voucher mail kit.zip`);
-      toast(`✔ Mail kit for ${n} people downloaded`);
+      toast(`✔ Mail kit for ${kit.count} people downloaded` + (kit.test ? " · TEST mode: 3 emails to you" : ""));
     } catch (e) { console.error(e); toast("Couldn't build the mail kit: " + e.message, true); }
     finally { btn.disabled = false; }
   }
@@ -187,7 +182,6 @@
     const s = {};
     Object.entries(fields).forEach(([id, k]) => (s[k] = $("#" + id).value));
     s.simplify = $("#vSimplify").checked;
-    s.attach = $("#vAttach").checked;
     store.set("voucher", s);
   }
 
@@ -200,8 +194,7 @@
       el.addEventListener("input", () => { save(); renderPreview(); });
     });
     $("#vSimplify").checked = !!s.simplify;
-    if (s.attach != null) $("#vAttach").checked = s.attach;
-    ["vSimplify", "vAttach"].forEach((id) => $("#" + id).addEventListener("change", () => { save(); renderPreview(); }));
+    ["vSimplify"].forEach((id) => $("#" + id).addEventListener("change", () => { save(); renderPreview(); }));
     $("#vReset").addEventListener("click", resetLetter);
     $("#vGen").addEventListener("click", genDoc);
     $("#vKit").addEventListener("click", genKit);

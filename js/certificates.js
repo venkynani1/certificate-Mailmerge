@@ -716,9 +716,9 @@
           const fileBase = safeName(display);
           let attachPath = "";
           for (const f of fmts) {
-            const dir = (multi ? safeName(g.label) + "/" : "") + (fmts.length > 1 ? f.toUpperCase() + "/" : "");
-            namers[dir] = namers[dir] || uniqueNamer();
-            const file = dir + namers[dir](fileBase) + "." + f;
+            namers[f] = namers[f] || uniqueNamer();
+            const fname = namers[f](fileBase) + "." + f;
+            const file = "Mail Merge/" + fname;
             if (f === "png") {
               zip.file(file, await new Promise((r) => off.toBlob(r, "image/png")), { compression: "STORE" });
             } else {
@@ -727,9 +727,9 @@
               pdf.setProperties({ title: `${event ? event + " – " : ""}${display}` });
               zip.file(file, pdf.output("blob"), { compression: "STORE" });
             }
-            if (f === attachFmt) attachPath = file;
+            if (f === attachFmt) attachPath = fname;
           }
-          mailRows.push([display, p.email, attachPath.replace(/\//g, "\\")]);
+          mailRows.push({ name: display, email: p.email, file: attachPath, vars: { Event: event } });
           done++;
           pbar.style.width = (done / total) * 100 + "%";
           lbl.textContent = `${done} / ${total}`;
@@ -737,15 +737,11 @@
         }
       }
       const m = mail();
-      writeMailKit(zip, {
-        subject: m.certSubject, body: m.certBody, constants: { Event: event || "the event" },
-        header: ["Name", "Email", "File"], rows: mailRows,
-      });
+      const kit = await writeMailKit(zip, { subject: m.certSubject, body: m.certBody, people: mailRows });
       lbl.textContent = "Zipping…";
       await tick();
       download(await zip.generateAsync({ type: "blob" }), `${safeName(event || "Certificates")} - Certificates.zip`);
-      const noMail = mailRows.filter((r) => !r[1]).length;
-      toast(`✔ ${total} certificates ready` + (noMail ? ` (${noMail} without email)` : ""));
+      toast(`✔ ${total} certificates ready` + (kit.test ? " · TEST mode: 3 emails to you" : kit.noEmail ? ` · ${kit.noEmail} without email won't be mailed` : ""));
     } catch (e) {
       console.error(e);
       toast("Something went wrong: " + e.message, true);

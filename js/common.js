@@ -86,46 +86,108 @@
     vBody:
       "Dear {Name},\n\nThank you for your enthusiastic participation in {Event}.\n\nAs a token of appreciation, here are your {Brand} voucher details:\n\nReference ID: {RefID}\nPIN: {Pin}\nExpiry Date: {Expiry}\nAmount: {Amount}\n\nRegards,\nEarly Careers Team",
   };
-  const mailFields = { certSubject: "#mCertSubject", certBody: "#mCertBody", vSubject: "#mVSubject", vBody: "#mVBody", from: "#mFrom", cc: "#mCc" };
+  const mailFields = { certSubject: "#mCertSubject", certBody: "#mCertBody", vSubject: "#mVSubject", vBody: "#mVBody", cc: "#mCc", testEmail: "#mTestEmail" };
   function initMail() {
     const saved = store.get("mail", {});
     Object.entries(mailFields).forEach(([k, sel]) => {
       const el = $(sel);
       el.value = saved[k] != null ? saved[k] : DEFAULT_MAIL[k] || "";
-      el.addEventListener("input", () => { const s = store.get("mail", {}); s[k] = el.value; store.set("mail", s); });
+      el.addEventListener("input", () => { const s = store.get("mail", {}); s[k] = el.value; store.set("mail", s); syncTestFlag(); });
     });
+    const t = $("#mTest");
+    t.checked = !!saved.test;
+    t.addEventListener("change", () => { const s = store.get("mail", {}); s.test = t.checked; store.set("mail", s); syncTestFlag(); });
     $("#mReset").addEventListener("click", () => {
       Object.entries(DEFAULT_MAIL).forEach(([k, v]) => ($(mailFields[k]).value = v));
       const s = store.get("mail", {}); Object.keys(DEFAULT_MAIL).forEach((k) => delete s[k]); store.set("mail", s);
       toast("Email text reset");
     });
+    syncTestFlag();
   }
   function mail() {
     const o = {};
     Object.entries(mailFields).forEach(([k, sel]) => (o[k] = $(sel).value.trim()));
+    o.test = $("#mTest").checked && EMAIL_RE.test(o.testEmail);
     return o;
+  }
+  function syncTestFlag() {
+    const on = mail().test;
+    $$(".test-flag").forEach((el) => (el.hidden = !on));
+    if ($("#mTest").checked && !EMAIL_RE.test($("#mTestEmail").value)) $("#mTestWarn").hidden = false; else $("#mTestWarn").hidden = true;
   }
   function textToHtml(text) {
     const esc = String(text).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    return '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt">' + esc.replace(/\r?\n/g, "<br>\n") + "</div>";
+    return '<div style="font-family:Calibri,Arial,sans-serif;font-size:11pt">' + esc.replace(/\r?\n/g, "<br>") + "</div>";
   }
-  // Fills constants (event, brand) now; per-person {Name}, {RefID}… are filled by the Outlook macro.
-  function writeMailKit(zip, { subject, body, constants, rows, header }) {
-    const sub = (s) => Object.entries(constants || {}).reduce((acc, [k, v]) => acc.split("{" + k + "}").join(v), s);
-    const m = mail();
-    zip.file("mail-list.csv", toCsv([header].concat(rows)));
-    zip.file("email-subject.txt", "﻿" + sub(subject));
-    zip.file("email-body.html", "﻿" + textToHtml(sub(body)));
-    if (m.from) zip.file("email-from.txt", m.from);
-    if (m.cc) zip.file("email-cc.txt", m.cc);
-    zip.file("HOW-TO-SEND.txt",
-      "1. Extract this ZIP to a folder.\r\n" +
-      "2. In classic Outlook press Alt+F8, run SendBulkMail, and pick this folder.\r\n" +
-      "3. Choose 'No' to save as Drafts first (recommended), or 'Yes' to send now.\r\n" +
-      "(First time only: import outlook/BulkMailer.bas from the repo via Alt+F11 > File > Import File.)\r\n");
+  function fillVars(text, vars) {
+    return String(text || "").replace(/\{(\w+)\}/g, (m, k) => {
+      const key = Object.keys(vars).find((v) => v.toLowerCase() === k.toLowerCase());
+      return key ? String(vars[key] == null ? "" : vars[key]) : m;
+    });
+  }
+  const xmlEsc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  // Excel file with a real Excel *table* named MailList — Power Automate's
+  // "List rows present in a table" only reads tables, not plain cells.
+  async function buildMailXlsx(header, rows) {
+    const data = rows.length ? rows : [header.map(() => "")];
+    const ws = XLSX.utils.aoa_to_sheet([header].concat(data));
+    ws["!cols"] = header.map((h) => ({ wch: h === "Body" ? 60 : h === "Subject" ? 40 : 28 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "MailList");
+    const bytes = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const z = await JSZip.loadAsync(bytes);
+    const lastCol = String.fromCharCode(64 + header.length);
+    const ref = `A1:${lastCol}${data.length + 1}`;
+    z.file("xl/tables/table1.xml",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
+      `<table xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" id="1" name="MailList" displayName="MailList" ref="${ref}" totalsRowShown="0">` +
+      `<autoFilter ref="${ref}"/><tableColumns count="${header.length}">` +
+      header.map((h, i) => `<tableColumn id="${i + 1}" name="${xmlEsc(h)}"/>`).join("") +
+      `</tableColumns><tableStyleInfo name="TableStyleMedium2" showFirstColumn="0" showLastColumn="0" showRowStripes="1" showColumnStripes="0"/></table>`);
+    z.file("xl/worksheets/_rels/sheet1.xml.rels",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rIdTbl1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/table" Target="../tables/table1.xml"/></Relationships>');
+    let sheet = await z.file("xl/worksheets/sheet1.xml").async("string");
+    if (!/xmlns:r=/.test(sheet)) sheet = sheet.replace("<worksheet ", '<worksheet xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ');
+    sheet = sheet.replace(/<autoFilter[^>]*\/>/, "").replace("</worksheet>", '<tableParts count="1"><tablePart r:id="rIdTbl1"/></tableParts></worksheet>');
+    z.file("xl/worksheets/sheet1.xml", sheet);
+    let ct = await z.file("[Content_Types].xml").async("string");
+    ct = ct.replace("</Types>", '<Override PartName="/xl/tables/table1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"/></Types>');
+    z.file("[Content_Types].xml", ct);
+    return z.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
   }
 
-  window.MMS = { $, $$, store, toast, download, safeName, uniqueNamer, toCsv, parsePeople, EMAIL_RE, mail, writeMailKit, showTab };
+  /**
+   * Writes the "Mail Merge" folder for Power Automate:
+   *   Mail Merge/mail-list.xlsx  (table MailList: Email, Name, Subject, Body, FileName, File, Cc)
+   * people = [{ email, name, file (path inside "Mail Merge/"), vars }]
+   * Subject/Body are filled in per person here, so one flow works for every event.
+   */
+  async function writeMailKit(zip, { subject, body, people }) {
+    const m = mail();
+    // people without an email can't be sent to — they're left out of the list
+    let list = m.test ? people.slice(0, 3) : people.filter((p) => p.email);
+    const rows = list.map((p) => {
+      const vars = Object.assign({ Name: p.name || "Participant" }, p.vars || {});
+      const subj = (m.test ? "[TEST] " : "") + fillVars(subject, vars);
+      const html = textToHtml(fillVars(body, vars));
+      const to = m.test ? m.testEmail : p.email;
+      const fileName = p.file ? p.file.split("/").pop() : "";
+      return [to, p.name || "", subj, html, fileName, p.file || "", m.test ? "" : m.cc];
+    });
+    zip.file("Mail Merge/mail-list.xlsx", await buildMailXlsx(["Email", "Name", "Subject", "Body", "FileName", "File", "Cc"], rows));
+    zip.file("READ ME - how to send.txt",
+      "Send these emails with Power Automate (one-time setup: see the 'Send emails' tab in the app).\r\n\r\n" +
+      "1. Extract this ZIP.\r\n" +
+      "2. In OneDrive, delete the old 'Mail Merge' folder.\r\n" +
+      "3. Drag the new 'Mail Merge' folder into OneDrive (My files).\r\n" +
+      "4. Open make.powerautomate.com > My flows > 'Mail Merge - Send' > Run.\r\n" +
+      (m.test ? "\r\nTEST MODE: only 3 emails, all sent to " + m.testEmail + ".\r\n" : ""));
+    return { count: rows.length, test: m.test, noEmail: people.filter((p) => !p.email).length };
+  }
+
+  window.MMS = { $, $$, store, toast, download, safeName, uniqueNamer, toCsv, parsePeople, EMAIL_RE, mail, writeMailKit, buildMailXlsx, showTab };
 
   // ---------- installable app ----------
   let installPrompt = null;
