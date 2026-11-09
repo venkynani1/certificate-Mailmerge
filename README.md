@@ -10,6 +10,7 @@ Everything runs in your browser — names, emails and voucher codes never leave 
 
 ## Run it
 
+- **Live app:** https://certificate-mailmerge.vercel.app — open it and click **Install app** to add it to your Start menu / home screen.
 - Open `index.html` in Chrome/Edge (double-click works), **or**
 - Host the folder anywhere static (GitHub Pages, Vercel, an internal web server). No build step.
 
