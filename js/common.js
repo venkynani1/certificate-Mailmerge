@@ -149,7 +149,7 @@
       b.addEventListener("click", () => { insertChip(b.dataset.target, b.dataset.var); editors[b.dataset.target].dispatchEvent(new Event("input")); });
     });
     // sending options: delivery report, skip already-sent, Teams ping
-    const opts = { mReportTo: ["reportTo", ""], mDomain: ["domain", "hexaware.com"] };
+    const opts = { mReportTo: ["reportTo", ""], mDomain: ["domain", "hexaware.com"], mCc: ["cc", ""], mGroupSize: ["groupSize", "5"] };
     Object.entries(opts).forEach(([id, [k, d]]) => {
       const el = $("#" + id);
       el.value = saved[k] != null ? saved[k] : d;
@@ -159,6 +159,20 @@
       const el = $("#" + id);
       el.checked = saved[k] != null ? saved[k] : d;
       el.addEventListener("change", () => { const s = store.get("mail2", {}); s[k] = el.checked; store.set("mail2", s); syncOptions(); renderMailPreview(); });
+    });
+    // "Send via" (Outlook / Outlook + Teams) and "Certificate emails" (one per person / groups)
+    $$("#mChannel button").forEach((b) => b.addEventListener("click", () => {
+      $("#mTeams").checked = b.dataset.channel === "both";
+      $("#mTeams").dispatchEvent(new Event("change"));
+    }));
+    const savedGroup = !!saved.group;
+    $$("#mGroupMode button").forEach((b) => {
+      b.classList.toggle("active", (b.dataset.group === "group") === savedGroup);
+      b.addEventListener("click", () => {
+        const s = store.get("mail2", {}); s.group = b.dataset.group === "group"; store.set("mail2", s);
+        $$("#mGroupMode button").forEach((x) => x.classList.toggle("active", x === b));
+        syncOptions(); renderMailPreview();
+      });
     });
     const te = $("#mTestEmail"), t = $("#mTest");
     te.value = saved.testEmail || "";
@@ -175,9 +189,21 @@
     }));
     syncTestFlag(); syncOptions(); renderMailPreview();
   }
+  function ccList(raw) {
+    const parts = String(raw || "").split(/[,;\s]+/).map((x) => x.trim()).filter(Boolean);
+    return { ok: parts.filter((x) => EMAIL_RE.test(x) && x.match(EMAIL_RE)[0] === x), bad: parts.filter((x) => !(EMAIL_RE.test(x) && x.match(EMAIL_RE)[0] === x)) };
+  }
+  function groupSize() { return Math.max(2, Math.min(50, parseInt($("#mGroupSize").value, 10) || 5)); }
   function syncOptions() {
     const on = $("#mTeams").checked;
     $$(".teams-only").forEach((el) => (el.hidden = !on));
+    $$("#mChannel button").forEach((b) => b.classList.toggle("active", (b.dataset.channel === "both") === on));
+    const grp = !!store.get("mail2", {}).group;
+    $$(".group-only").forEach((el) => (el.hidden = !grp));
+    $$(".group-flag").forEach((el) => { el.hidden = !grp; el.textContent = `👥 Group emails: ${groupSize()} people per email, starting “Dear team,”${on ? " — Teams still goes to each person" : ""}.`; });
+    const cc = ccList($("#mCc").value);
+    $("#mCcWarn").hidden = !cc.bad.length;
+    $("#mCcWarn").textContent = cc.bad.length ? `Not an email address: ${cc.bad.join(", ")}` : "";
     $("#mDomainEcho").textContent = $("#mDomain").value.trim().replace(/^@/, "") || "hexaware.com";
     const r = $("#mReportTo").value.trim();
     $("#mReportWarn").hidden = !r || EMAIL_RE.test(r);
@@ -190,6 +216,9 @@
     o.reportTo = EMAIL_RE.test($("#mReportTo").value.trim()) ? $("#mReportTo").value.trim() : "";
     o.teams = $("#mTeams").checked;
     o.domain = ($("#mDomain").value.trim().replace(/^@/, "") || "hexaware.com").toLowerCase();
+    o.cc = ccList($("#mCc").value).ok.join(";");
+    o.group = !!store.get("mail2", {}).group;
+    o.groupSize = groupSize();
     return o;
   }
   function syncTestFlag() {
@@ -227,9 +256,14 @@
     const ev = ($("#certEvent") && $("#certEvent").value.trim()) || ($("#vEvent") && $("#vEvent").value.trim()) || "Mavericks AI Edge";
     const vars = { Name: "Venkatesh Ragipati", Event: kind === "cert" ? ev : (($("#vEvent") && $("#vEvent").value.trim()) || ev), Brand: ($("#vBrand") && $("#vBrand").value.trim()) || "Amazon",
       RefID: "H6V6-UX3PPG-DGEY", Pin: "6014879723006652", Expiry: "2027-10-13", Amount: "1000" };
-    const e = buildEmail(kind, mail(), vars);
-    box.innerHTML = `<div class="mp-subject"><span>Subject</span>${escHtml(e.subject)}</div><div class="mp-body">${e.html}</div>` +
-      ($("#mTeams").checked ? `<div class="mp-subject teams-prev"><span>Teams</span>${e.teams}</div>` : "");
+    const m = mail();
+    const grouped = kind === "cert" && m.group;
+    const e = buildEmail(kind, m, grouped ? Object.assign({}, vars, { Name: "team" }) : vars);
+    const teams = buildEmail(kind, m, vars).teams;
+    box.innerHTML = `<div class="mp-subject"><span>To</span>${grouped ? `${m.groupSize} people in one email` : "the participant"}</div>` +
+      (m.cc ? `<div class="mp-subject"><span>Cc</span>${escHtml(m.cc.replace(/;/g, "; "))}</div>` : "") +
+      `<div class="mp-subject"><span>Subject</span>${escHtml(e.subject)}</div><div class="mp-body">${e.html}</div>` +
+      ($("#mTeams").checked ? `<div class="mp-subject teams-prev"><span>Teams${grouped ? " (each person)" : ""}</span>${teams}</div>` : "");
   }
   const xmlEsc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -280,28 +314,44 @@
     const at = "@" + m.domain;
     const withMail = people.map((p) => Object.assign({}, p, { email: p.email || (p.emp ? p.emp + at : "") }));
     const list = m.test ? withMail.slice(0, 3) : withMail.filter((p) => p.email);
-    const records = [];
-    for (let i = 0; i < list.length; i++) {
-      const p = list[i];
+    const company = (addr) => String(addr || "").toLowerCase().endsWith(at);
+    const teamsAddr = (p) => !m.teams ? "" : m.test ? (company(m.testEmail) ? m.testEmail : "")
+      : company(p.email) ? p.email : p.emp ? p.emp + at : "";
+    const tag = m.test ? "<p>[TEST]</p>" : "";
+    const filesOf = (p) => (p.files || []).map((f) => ({ Name: f.Name, Path: f.Path }));
+    const sizeOf = (ps) => ps.reduce((t, p) => t + (p.files || []).reduce((u, f) => u + (f.size || 0), 0), 0);
+    // one Teams chat per person, with their own message (and their own certificate links)
+    const teamsFor = (p) => {
+      const to = teamsAddr(p);
+      if (!to) return [];
       const vars = Object.assign({}, p.vars || {}, { Name: p.name || "Participant" });
       const e = build ? build(p, vars) : buildEmail(kind, m, vars);
-      const to = m.test ? m.testEmail : p.email;
-      const company = (addr) => String(addr || "").toLowerCase().endsWith(at);
-      const teamsTo = !m.teams ? "" : m.test ? (company(m.testEmail) ? m.testEmail : "")
-        : company(p.email) ? p.email : p.emp ? p.emp + at : "";
-      const files = (p.files || []).map((f) => ({ Name: f.Name, Path: f.Path }));
+      return [{ To: to, Message: tag + (e.teams || ""), Files: kind === "cert" ? filesOf(p) : [] }];
+    };
+    // group emails only for certificates — vouchers and maker emails carry personal details
+    const grouped = kind === "cert" && m.group;
+    const batches = [];
+    for (let i = 0; i < list.length; i += grouped ? m.groupSize : 1) batches.push(list.slice(i, i + (grouped ? m.groupSize : 1)));
+    const records = [];
+    let biggest = 0;
+    batches.forEach((batch, bi) => {
+      const one = batch.length === 1 && !grouped;
+      const p = batch[0];
+      const vars = one ? Object.assign({}, p.vars || {}, { Name: p.name || "Participant" })
+        : Object.assign({}, p.vars || {}, { Name: "team" });
+      const e = build ? build(p, vars) : buildEmail(kind, m, vars);
+      const to = m.test ? m.testEmail : Array.from(new Set(batch.map((x) => x.email))).join(";");
+      biggest = Math.max(biggest, sizeOf(batch));
       records.push({
         Email: to,
-        Name: p.name || "",
+        Cc: m.cc,
+        Name: one ? p.name || "" : `Group ${bi + 1}: ${batch.map((x) => x.name).join(", ")}`,
         Subject: (m.test ? "[TEST] " : "") + e.subject,
         Body: e.html,
-        Files: files,
-        TeamsTo: teamsTo,
-        TeamsMessage: teamsTo ? (m.test ? "<p>[TEST]</p>" : "") + (e.teams || "") : "",
-        // certificates are linked in the Teams message; voucher files stay in the email only
-        TeamsFiles: teamsTo && kind === "cert" ? files : [],
+        Files: batch.flatMap(filesOf),
+        Teams: batch.flatMap(teamsFor),
       });
-    }
+    });
     const parts = [];
     let cur = [], size = 2;
     records.forEach((r) => {
@@ -313,22 +363,21 @@
     const names = parts.map((_, i) => `mail-list-part-${String(i + 1).padStart(3, "0")}.json`);
     parts.forEach((part, i) => zip.file("Mail Merge/" + names[i], JSON.stringify(part)));
     zip.file("Mail Merge/mail-list.json", JSON.stringify({
-      version: 3, kind, event: event || "", createdAt: new Date().toISOString(), count: records.length, test: m.test, parts: names,
-      reportTo: m.reportTo, waitSeconds: records.some((r) => r.TeamsTo) ? 12 : 2,
+      version: 5, kind, event: event || "", createdAt: new Date().toISOString(), count: records.length, test: m.test, parts: names,
+      reportTo: m.reportTo, waitSeconds: 2, teamsWaitSeconds: 12, people: list.length, grouped, cc: m.cc,
       eventFolder: safeName(event || "Event").slice(0, 80),
     }, null, 1));
-    const header = ["Email", "Name", "Subject", "Attachments", "Teams"];
-    zip.file("Mail Merge/mail-list.xlsx", await buildMailXlsx(header, records.map((r) => [r.Email, r.Name, r.Subject, r.Files.map((f) => f.Name).join(", "), r.TeamsTo ? "yes" : ""])));
+    const header = ["Email", "Cc", "Name", "Subject", "Attachments", "Teams"];
+    zip.file("Mail Merge/mail-list.xlsx", await buildMailXlsx(header, records.map((r) => [r.Email.replace(/;/g, "; "), r.Cc.replace(/;/g, "; "), r.Name, r.Subject, r.Files.map((f) => f.Name).join(", "), r.Teams.map((t) => t.To).join("; ")])));
 
     zip.file("READ ME - how to send.txt",
       "HOW TO SEND (one-time setup is in the app's 'Send emails' tab)\r\n\r\n" +
       "1. In File Explorer open 'OneDrive - Hexaware' and DELETE the old 'Mail Merge' folder.\r\n" +
       "2. Right-click this ZIP > Extract All > Browse > choose 'OneDrive - Hexaware' > Extract.\r\n" +
-      "3. make.powerautomate.com > My flows > 'Mail Merge - Send v4' > Run > Run flow.\r\n\r\n" +
+      "3. make.powerautomate.com > My flows > 'Mail Merge - Send v5' > Run > Run flow.\r\n\r\n" +
       `This mailing: ${records.length} email(s)` + (m.test ? `, TEST MODE - all sent to ${m.testEmail}` : "") + ".\r\n");
-    const biggest = Math.max(0, ...people.map((p) => (p.files || []).reduce((t, f) => t + (f.size || 0), 0)));
     return { count: records.length, test: m.test, noEmail: withMail.filter((p) => !p.email).length, parts: names.length, biggestMB: biggest / 1048576,
-      teams: records.filter((r) => r.TeamsTo).length, reportTo: m.reportTo };
+      teams: records.reduce((n, r) => n + r.Teams.length, 0), reportTo: m.reportTo, grouped, people: list.length };
   }
 
   window.MMS = { $, $$, store, toast, download, safeName, uniqueNamer, toCsv, parsePeople, EMAIL_RE, mail, writeMailKit, buildMailXlsx, renderMailPreview, showTab,

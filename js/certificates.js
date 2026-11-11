@@ -783,7 +783,7 @@
       lbl.textContent = "Zipping…";
       await tick();
       download(await zip.generateAsync({ type: "blob" }), `${safeName(event || "Certificates")} - Certificates.zip`);
-      toast(`✔ ${total} certificates ready` + (kit.teams ? ` · ${kit.teams} Teams messages` : "") + (kit.test ? " · TEST mode: 3 emails to you" : kit.noEmail ? ` · ${kit.noEmail} without email or Emp ID won't be mailed` : ""));
+      toast(`✔ ${total} certificates ready` + (kit.grouped ? ` · ${kit.count} group email${kit.count > 1 ? "s" : ""}` : "") + (kit.teams ? ` · ${kit.teams} Teams messages` : "") + (kit.test ? " · TEST mode: 3 emails to you" : kit.noEmail ? ` · ${kit.noEmail} without email or Emp ID won't be mailed` : ""));
       if (kit.biggestMB > 20) setTimeout(() => toast(`Heads-up: one email's attachments are ${kit.biggestMB.toFixed(1)} MB. Outlook allows ~25 MB — untick PNG to keep emails small.`, true), 3800);
     } catch (e) {
       console.error(e);

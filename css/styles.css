@@ -309,3 +309,9 @@ input.inline-input { display: inline-block; width: 124px; margin: 0 0 0 2px; pad
 label.check span { line-height: 1.4; }
 .mail-preview .mp-subject.teams-prev { border-bottom: 0; border-top: 1px solid var(--line); font-weight: 500; }
 .mail-preview .mp-subject.teams-prev p { display: inline; margin: 0; }
+
+.seg.two { grid-template-columns: 1fr 1fr; }
+.seg.two button { font-size: 12.5px; padding: 8px 6px; }
+.opt-label { margin: 14px 0 6px; }
+input.inline-input.narrow { width: 64px; }
+.group-flag { margin: 8px 0 0; padding: 7px 10px; border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--accent); font-weight: 550; }

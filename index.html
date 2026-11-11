@@ -149,6 +149,7 @@
               <button data-fmt="jpg">JPG</button>
             </div>
             <p class="muted small" id="fmtHint"></p>
+            <p class="group-flag small" hidden></p>
             <button id="genCerts" class="btn primary block">Generate mail ZIP (to send)</button>
             <button id="dlCerts" class="btn ghost block">⬇ Download certificates only</button>
             <div class="progress" id="certProg" hidden><div></div><span></span></div>
@@ -302,7 +303,7 @@
             <div class="card-head"><span class="step">5</span><h2>Generate</h2></div>
             <p class="test-flag warn small" hidden>🧪 Test mode is on — only 3 emails, all to you.</p>
             <button id="pkGen" class="btn primary block">Download mail ZIP</button>
-            <p class="muted small">Send it exactly like certificates: delete the old <code>Mail Merge</code> folder in <b>OneDrive - Hexaware</b>, extract this ZIP there, run <b>Mail Merge - Send v4</b>. Same flow — nothing new to build. (<a href="#" data-goto="send">Send emails</a>)</p>
+            <p class="muted small">Send it exactly like certificates: delete the old <code>Mail Merge</code> folder in <b>OneDrive - Hexaware</b>, extract this ZIP there, run <b>Mail Merge - Send v5</b>. Same flow — nothing new to build. (<a href="#" data-goto="send">Send emails</a>)</p>
           </div>
         </div>
 
@@ -325,17 +326,37 @@
         <div class="send-left">
           <div class="card">
             <div class="card-head"><h2>Sending options</h2></div>
-            <label>📊 Send the delivery report to <span class="hint">(after every run: sent / failed / skipped, with the reason for each failure)</span>
+            <label>📊 Send the delivery report to <span class="hint">(after every run: sent / failed, with the reason for each failure)</span>
               <input id="mReportTo" type="email" placeholder="you@hexaware.com" />
             </label>
             <p id="mReportWarn" class="warn small" hidden>That doesn't look like an email address.</p>
             <label>Company email domain <span class="hint">(Emp ID 2000168956 → 2000168956@<span id="mDomainEcho">hexaware.com</span>)</span>
               <input id="mDomain" type="text" value="hexaware.com" />
             </label>
-            <label class="check" style="margin-top:12px"><input id="mTeams" type="checkbox" /> <span><b>Also send it on Microsoft Teams</b></span></label>
+            <label>CC <span class="hint">(optional — added to every email, individual or group; separate with commas)</span>
+              <input id="mCc" type="text" placeholder="manager@hexaware.com, events@hexaware.com" />
+            </label>
+            <p id="mCcWarn" class="warn small" hidden></p>
+
+            <label class="opt-label">Send via</label>
+            <div class="seg two" id="mChannel">
+              <button data-channel="outlook">📧 Outlook only</button>
+              <button data-channel="both">📧 Outlook + 💬 Teams</button>
+            </div>
+            <input id="mTeams" type="checkbox" hidden />
             <div class="teams-only opt-sub">
               <p class="small" style="margin:0">Each person also gets a Teams chat with your message <b>and a link to their certificate</b> (PDF/PNG/JPG). It goes to their company email, or <i>EmpID</i>@domain when you gave an Emp ID. Gmail/outside people get the email only.</p>
               <p class="muted small">Sent by the <b>Workflows</b> bot. Certificates are kept in OneDrive ▸ <code>Mail Merge Certificates</code> so the links keep working; only colleagues can open them. Teams allows ~5 messages a minute, so with Teams on the flow does one person every 12 s (300 people ≈ 1 hour, runs on its own). Voucher codes are never put in Teams.</p>
+            </div>
+
+            <label class="opt-label">Certificate emails</label>
+            <div class="seg two" id="mGroupMode">
+              <button data-group="single">👤 One email per person</button>
+              <button data-group="group">👥 Group emails</button>
+            </div>
+            <div class="group-only opt-sub">
+              <label style="margin-top:0">People per email <input id="mGroupSize" class="inline-input narrow" type="number" min="2" max="50" value="5" /></label>
+              <p class="muted small">One email to the whole group with everyone's certificates attached, starting <b>“Dear team,”</b>. E.g. 18 people in groups of 5 → 4 emails (5 + 5 + 5 + 3). Vouchers and Power Automate maker emails are always one per person, because they contain personal details.</p>
             </div>
           </div>
 
@@ -422,7 +443,7 @@
           <h3>One-time setup · about 3 minutes</h3>
           <ol class="steps">
             <li><b>Check OneDrive syncs on your laptop:</b> open File Explorer — you should see <b>OneDrive - Hexaware</b> in the left sidebar. <span class="muted">(If not, open the OneDrive app from the Start menu and sign in with your Hexaware account.)</span></li>
-            <li><a class="btn primary small" href="power-automate/Mail-Merge-Send.zip" download>⬇ Download the flow (v4)</a> <span class="muted">— keep it zipped</span></li>
+            <li><a class="btn primary small" href="power-automate/Mail-Merge-Send.zip" download>⬇ Download the flow (v5)</a> <span class="muted">— keep it zipped</span></li>
             <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">make.powerautomate.com</a> ▸ <b>My flows</b>. <b>Delete every older flow called <code>Mail Merge - Send</code></b> (⋯ ▸ Delete) so you never run an old version by mistake.</li>
             <li><b>Import</b> ▸ <b>Import Package (Legacy)</b> ▸ <b>Upload</b> the zip.</li>
             <li>Under <b>Related resources</b> click <b>Select during import</b> for <b>OneDrive for Business</b>, <b>Office 365 Outlook</b> and <b>Microsoft Teams</b> ▸ pick your account (or <i>+ Create new</i>) ▸ <b>Save</b>. Then <b>Import</b>.</li>
@@ -435,7 +456,7 @@
             <li>Untick 🧪 Test mode. Generate certificates (or the voucher <b>mail kit</b>).</li>
             <li>In File Explorer ▸ <b>OneDrive - Hexaware</b>: <b>delete the old <code>Mail Merge</code> folder</b>.</li>
             <li>Right-click the ZIP in Downloads ▸ <b>Extract All</b> ▸ <b>Browse</b> ▸ pick <b>OneDrive - Hexaware</b> ▸ <b>Extract</b>. Wait for the green ✓ on the new <code>Mail Merge</code> folder (synced).</li>
-            <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">Power Automate</a> ▸ <b>My flows</b> ▸ <code>Mail Merge - Send v4</code> ▸ <b>Run</b> ▸ <b>Run flow</b>.</li>
+            <li><a href="https://make.powerautomate.com" target="_blank" rel="noopener">Power Automate</a> ▸ <b>My flows</b> ▸ <code>Mail Merge - Send v5</code> ▸ <b>Run</b> ▸ <b>Run flow</b>.</li>
           </ol>
           <p class="muted small">Works for any number of people — sent one after another (about 2–3 s each, or 12 s with Teams on). You can close the page; it keeps going. When it's done, the delivery report lands in your inbox and a full CSV is saved in OneDrive ▸ Mail Merge.</p>
 

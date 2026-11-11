@@ -21,18 +21,18 @@ Subject and email body are fully written per person ("Dear <name>," + your messa
 ## One-time setup (~3 minutes)
 
 1. Make sure **OneDrive - Hexaware** shows in File Explorer's sidebar (OneDrive app signed in).
-2. Download [`power-automate/Mail-Merge-Send.zip`](../power-automate/Mail-Merge-Send.zip) (v4) — keep it zipped.
-3. <https://make.powerautomate.com> ▸ **My flows** — delete any older `Mail Merge - Send v4`.
+2. Download [`power-automate/Mail-Merge-Send.zip`](../power-automate/Mail-Merge-Send.zip) (v5) — keep it zipped.
+3. <https://make.powerautomate.com> ▸ **My flows** — delete any older `Mail Merge - Send v5`.
 4. **Import ▸ Import Package (Legacy)** ▸ **Upload** the zip.
 5. **Related resources**: *Select during import* for **OneDrive for Business**, **Office 365 Outlook** and **Microsoft Teams** → your account → **Save** → **Import**.
 6. Open the flow → **Turn on**.
 7. Test with the app's **Test mode** (3 emails, all to you).
 
-What the flow does for each person:
+What the flow does for each email:
 
-1. **Sends the email** with every attachment for that person.
-2. **Teams** (if turned on in the app): copies their certificate(s) to `OneDrive / Mail Merge Certificates / <event>`, makes a company-only view link, and sends a Teams chat (Workflows bot) with your message + the links. Teams goes to the company email, or EmpID@hexaware.com. Gmail/outside people get email only. Voucher codes never go to Teams.
-3. Waits 2 s (12 s with Teams on — the Teams bot allows ~25 messages per 5 minutes).
+1. **Sends the email** with every attachment — to one person, or to a whole group (`To: a;b;c`, "Dear team,", everyone's certificates) when *Group emails* is chosen for certificates. The optional **CC** from the app is added to every email.
+2. **Teams** (when *Send via* is **Outlook + Teams**): for **each person** in that email, copies their certificate(s) to `OneDrive / Mail Merge Certificates / <event>`, makes company-only view links, and sends them their own Teams chat (Workflows bot) with your message + links. Teams goes to the company email, or EmpID@hexaware.com. Gmail/outside people get email only. Voucher codes never go to Teams.
+3. Waits 2 s between emails and 12 s between Teams messages (the Teams bot allows ~25 messages per 5 minutes).
 
 After everyone: a **delivery report** CSV is saved to `OneDrive / Mail Merge`, and an email goes to the report address with sent / failed counts and a table of every failure with its reason.
 
@@ -43,7 +43,7 @@ It finds files by path, so replacing the folder each event never breaks it. Rebu
 1. Turn **off** Test mode and generate.
 2. File Explorer ▸ **OneDrive - Hexaware** ▸ delete the old `Mail Merge` folder.
 3. Right-click the ZIP ▸ **Extract All** ▸ **Browse** ▸ **OneDrive - Hexaware** ▸ **Extract**. Wait for the green ✓.
-4. Power Automate ▸ My flows ▸ `Mail Merge - Send v4` ▸ **Run**.
+4. Power Automate ▸ My flows ▸ `Mail Merge - Send v5` ▸ **Run**.
 
 About 2–3 seconds per email (300 people ≈ 15 minutes); the run continues even if you close the browser.
 
