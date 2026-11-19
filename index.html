@@ -152,9 +152,10 @@
             <p class="group-flag small" hidden></p>
             <button id="genCerts" class="btn primary block">Generate mail ZIP (to send)</button>
             <button id="dlCerts" class="btn ghost block">⬇ Download certificates only</button>
+            <label class="small zip-max">Split into ZIPs of at most <input id="zipMax" class="inline-input narrow" type="number" min="1" max="200" step="1" value="19" /> MB <span class="hint">— Outlook can't attach more than 20 MB</span></label>
             <div class="progress" id="certProg" hidden><div></div><span></span></div>
             <p class="test-flag warn small" hidden>🧪 Test mode is on — the mail list will have only 3 emails, all to you.</p>
-            <p class="muted small"><b>Mail ZIP</b> = certificates + mail list for Power Automate (<a href="#" data-goto="send">Send emails</a>). <b>Download only</b> = just the files in the ticked formats (one file if it's one person).</p>
+            <p class="muted small"><b>Mail ZIP</b> = certificates + mail list for Power Automate (<a href="#" data-goto="send">Send emails</a>). <b>Download only</b> = just the files in the ticked formats — split into several ZIPs if needed so each one fits in an Outlook email (one file if it's one person).</p>
           </div>
         </div>
 
