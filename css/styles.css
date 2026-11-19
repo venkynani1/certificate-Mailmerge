@@ -315,3 +315,6 @@ label.check span { line-height: 1.4; }
 .opt-label { margin: 14px 0 6px; }
 input.inline-input.narrow { width: 64px; }
 .group-flag { margin: 8px 0 0; padding: 7px 10px; border-radius: var(--radius-sm); background: var(--accent-soft); color: var(--accent); font-weight: 550; }
+
+.zip-max { margin-top: 8px; font-weight: 450; color: var(--muted); }
+.zip-max input { color: var(--ink); }
