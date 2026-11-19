@@ -758,8 +758,8 @@
               pdf.setProperties({ title: `${event ? event + " – " : ""}${display}` });
               blob = pdf.output("blob");
             }
-            zip.file(folder + fname, blob, { compression: "STORE" });
-            loose.push({ fname, blob });
+            if (mode !== "files") zip.file(folder + fname, blob, { compression: "STORE" }); // files mode zips later, in parts
+            loose.push({ fname, blob, person: done });
             files.push({ Name: fname, Path: fname, size: blob.size });
           }
           mailRows.push({ name: display, email: p.email, emp: p.emp, files, vars: { Event: event } });
@@ -770,13 +770,23 @@
         }
       }
       if (mode === "files") {
-        if (loose.length === 1) download(loose[0].blob, loose[0].fname); // one person, one format: just the file
-        else {
-          lbl.textContent = "Zipping…";
-          await tick();
-          download(await zip.generateAsync({ type: "blob" }), `${safeName(event || "Certificates")} - Certificates only.zip`);
+        const kinds = fmts.map((f) => f.toUpperCase()).join(" + ");
+        if (loose.length === 1) { // one person, one format: just the file
+          download(loose[0].blob, loose[0].fname);
+          toast(`✔ Certificate downloaded (${kinds})`);
+          return;
         }
-        toast(`✔ ${total} certificate${total > 1 ? "s" : ""} downloaded (${fmts.map((f) => f.toUpperCase()).join(" + ")})`);
+        const parts = await zipInParts(loose, zipLimitBytes(), (i, n) => { lbl.textContent = n > 1 ? `Zipping part ${i} of ${n}…` : "Zipping…"; });
+        const base = `${safeName(event || "Certificates")} - Certificates`;
+        for (let i = 0; i < parts.length; i++) {
+          download(parts[i].blob, parts.length > 1 ? `${base} (part ${i + 1} of ${parts.length}).zip` : `${base} only.zip`);
+          if (i < parts.length - 1) await new Promise((r) => setTimeout(r, 700)); // browsers drop downloads fired too close together
+        }
+        const mb = (b) => (b / 1048576).toFixed(1);
+        toast(parts.length > 1
+          ? `✔ ${total} certificates (${kinds}) in ${parts.length} ZIPs, each under ${zipLimitMB()} MB (largest ${mb(Math.max(...parts.map((p) => p.blob.size)))} MB). If Chrome asks, click “Allow” for multiple downloads.`
+          : `✔ ${total} certificates downloaded (${kinds}) · ${mb(parts[0].blob.size)} MB`);
+        if (parts.some((p) => p.oversize)) setTimeout(() => toast(`Heads-up: one person's files alone are bigger than ${zipLimitMB()} MB, so that ZIP is over the limit. Untick PNG to make files smaller.`, true), 4500);
         return;
       }
       const kit = await writeMailKit(zip, { kind: "cert", people: mailRows, event });
@@ -792,6 +802,47 @@
       btn.disabled = false;
       setTimeout(() => { prog.hidden = true; pbar.style.width = "0"; }, 1500);
     }
+  }
+
+  // ---------- Outlook-sized ZIP parts ----------
+  // Outlook won't attach files over 20 MB, so "Download certificates only" splits the ZIP.
+  // Everyone appears exactly once; one person's formats (PDF + PNG + JPG) stay in the same part.
+  function zipLimitMB() { return Math.max(1, Math.min(200, parseFloat($("#zipMax").value) || 19)); }
+  function zipLimitBytes() { return Math.floor(zipLimitMB() * 1048576); }
+  const nameBytes = (n) => new TextEncoder().encode(n).length;
+  // stored (uncompressed) ZIP: local header 30 + central entry 46 + names twice + possible data descriptor/zip64 slack
+  const entryBytes = (f) => f.blob.size + 30 + 46 + 2 * nameBytes(f.fname) + 64;
+  async function zipInParts(files, limit, onPart) {
+    const units = [];
+    files.forEach((f) => {
+      const last = units[units.length - 1];
+      if (last && last[0].person === f.person) last.push(f); else units.push([f]);
+    });
+    const plans = [];
+    let cur = [], size = 22;
+    units.forEach((u) => {
+      const n = u.reduce((t, f) => t + entryBytes(f), 0);
+      if (cur.length && size + n > limit) { plans.push(cur); cur = []; size = 22; }
+      cur = cur.concat(u); size += n;
+    });
+    if (cur.length) plans.push(cur);
+    const out = [];
+    for (let i = 0; i < plans.length; i++) {
+      onPart(i + 1, plans.length);
+      await tick();
+      out.push(...await buildPart(plans[i], limit));
+    }
+    return out;
+  }
+  // build one part; if the real ZIP still comes out too big, split it in two (by person) and try again
+  async function buildPart(files, limit) {
+    const z = new JSZip();
+    files.forEach((f) => z.file(f.fname, f.blob, { compression: "STORE" }));
+    const blob = await z.generateAsync({ type: "blob" });
+    const people = Array.from(new Set(files.map((f) => f.person)));
+    if (blob.size <= limit || people.length < 2) return [{ blob, oversize: blob.size > limit }];
+    const half = new Set(people.slice(0, Math.ceil(people.length / 2)));
+    return [...await buildPart(files.filter((f) => half.has(f.person)), limit), ...await buildPart(files.filter((f) => !half.has(f.person)), limit)];
   }
 
   function fmtHint() {
@@ -867,6 +918,9 @@
     $("#fmtHint").textContent = fmtHint();
     $("#genCerts").addEventListener("click", () => generate("kit"));
     $("#dlCerts").addEventListener("click", () => generate("files"));
+    const zm = $("#zipMax");
+    zm.value = store.get("zipMaxMB", 19);
+    zm.addEventListener("input", () => store.set("zipMaxMB", zm.value));
 
     const ev = $("#certEvent");
     ev.value = store.get("certEvent", "");
